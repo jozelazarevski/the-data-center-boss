@@ -5,6 +5,6 @@
   "description": "A fun, educational data center management game that runs in the browser.",
   "scripts": {
     "start": "npx --yes http-server -c-1 -p 8080 .",
-    "test": "node --test tests/"
+    "test": "node --test tests/*.test.js"
   }
 }
