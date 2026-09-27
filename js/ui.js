@@ -37,6 +37,7 @@
     else s = `$${Math.round(v).toLocaleString()}`;
     return neg ? `−${s}` : s;
   }
+  const tons = (v) => `${(v / sim.TON).toFixed(v / sim.TON < 10 ? 1 : 0)} tons`;
   const kw = (v) => `${v < 10 ? v.toFixed(1) : Math.round(v)} kW`;
   function slaDowntime(sla) {
     const min = (1 - sla / 100) * 30 * 24 * 60;
@@ -83,8 +84,7 @@
       if (!raw) return null;
       const s = JSON.parse(raw);
       if (!s || s.version !== 1) return null;
-      sim.computeMetrics(s);
-      return s;
+      return sim.migrate(s);
     } catch (e) { return null; }
   }
 
@@ -134,6 +134,12 @@
     if (fx.sale > 0) a.push(['good', `🏷️ 25% off equipment (${fx.sale}h)`]);
     if (m.facility > S.gridCap * 0.9 && S.powered) a.push(['bad', `🔌 Power at ${Math.round((m.facility / S.gridCap) * 100)}% of your feed! Upgrade the grid connection.`]);
     if (m.hot) a.push(['warn', `🔥 ${m.hot} overheating ${m.hot > 1 ? 'units are' : 'unit is'} throttling`]);
+    if (fx.evac > 0) a.push(['bad', `🚒 Building evacuated (${fx.evac}h)`]);
+    if (fx.dr > 0) a.push(['info', `🏭 Demand response: setpoint +3 °C (${fx.dr}h)`]);
+    if (m.plant.short && S.powered) a.push(['bad', `🧊 Chilled water short: CRAHs at ${Math.round(m.plant.crahScale * 100)}%. Add chiller capacity`]);
+    if (m.plant.wcUsable < m.plant.wcChw - 0.5) a.push(['warn', '🗼 Water-cooled chiller needs more Cooling Tower capacity']);
+    if (m.alarms) a.push(['warn', `🚨 ${m.alarms} BMS alarm${m.alarms > 1 ? 's' : ''}: technicians are servicing`]);
+    if (m.plant.economizer !== 'off' && S.powered) a.push(['good', `🌬️ Free cooling: ${m.plant.economizer}`]);
     if (m.broken) a.push([S.techs ? 'warn' : 'bad', `🔧 ${m.broken} broken ${S.techs ? '' : '· hire a technician!'}`]);
     if (S.powered && m.availability < 0.999 && S.contracts.length) a.push(['bad', `📉 Serving ${(m.availability * 100).toFixed(0)}% of demand`]);
     setHTML($('#alerts'), a.map(([c, t]) => `<span class="chip ${c}">${esc(t)}</span>`).join(''));
@@ -156,6 +162,13 @@
     switch: () => `<div class="art switch"><div class="ports">${'<i></i>'.repeat(8)}</div><div class="ports">${'<i></i>'.repeat(8)}</div></div>`,
     firewall: () => `<div class="art firewall"><span>🛡️</span></div>`,
     ups: () => `<div class="art ups"><div class="batt"><i></i></div><span class="lbl">UPS</span></div>`,
+    crah: () => `<div class="art crac crah"><div class="fan"><i></i><i></i><i></i></div><span class="lbl">CRAH</span></div>`,
+    chiller_ac: () => `<div class="art chiller ac"><div class="cfans"><div class="fan small"><i></i><i></i><i></i></div><div class="fan small"><i></i><i></i><i></i></div></div><span class="lbl">CH-AC</span></div>`,
+    chiller_wc: () => `<div class="art chiller wc"><div class="shell"></div><div class="shell"></div><div class="comp"></div><span class="lbl">CH-WC</span></div>`,
+    tower: () => `<div class="art tower"><div class="fan small"><i></i><i></i><i></i></div><div class="fill"></div><span class="lbl">CT</span></div>`,
+    bms: () => `<div class="art bms"><div class="screen"><i></i><i></i><i></i></div><span class="lbl">BMS</span></div>`,
+    suppression: () => `<div class="art supp"><div class="cyl"></div><div class="cyl"></div><span class="lbl">FIRE</span></div>`,
+    access: () => `<div class="art access"><div class="door"><i></i></div><span class="cam">📷</span></div>`,
     generator: () => `<div class="art gen"><div class="exhaust"></div><span>⛽</span><span class="lbl">GEN</span></div>`,
   };
 
@@ -223,6 +236,9 @@
           inner = ART[t.type]();
           if (t.status === 'broken') {
             inner += `<span class="badge fix">🔧</span><span class="repair"><span style="width:${((C.repairHours - t.repair) / C.repairHours) * 100}%"></span></span>`;
+          } else if (t.alarm > 0) {
+            inner += '<span class="badge alarm">🚨</span>';
+            cls.push('alarmed');
           } else if (DCB.heatOf(d) > 0 && t.temp > C.tempThrottle) {
             inner += '<span class="badge hot">🔥</span>';
             cls.push('overheat');
@@ -252,7 +268,7 @@
     if (tool === 'sell') h = 'Click equipment to sell it for 50% of its price (25% if broken). <kbd>Esc</kbd> to cancel.';
     else if (tool) {
       const d = EQ[tool];
-      h = `Placing <b>${d.name}</b> (${money(sim.priceOf(S, tool))}). Click or drag on empty floor tiles. ${d.cooling ? `The highlighted square shows its cooling range (${d.radius} tile${d.radius > 1 ? 's' : ''}).` : ''} <kbd>Esc</kbd> to cancel.`;
+      h = `Placing <b>${d.name}</b> (${money(sim.priceOf(S, tool))}). Click or drag on empty floor tiles. ${d.cooling ? `The highlighted square shows its cooling range (${d.radius} tile${d.radius > 1 ? 's' : ''}).` : ''}${d.chw ? ' CRAHs need chilled water: build a chiller plant too.' : ''}${d.cat === 'plant' ? ' Plant equipment can go anywhere: the chilled water loop reaches every CRAH.' : ''} <kbd>Esc</kbd> to cancel.`;
     } else if (!Object.keys(S.goals).length) h = '👉 Pick <b>Server Rack</b> from the Build menu, then click a floor tile to place it.';
     else h = 'Click equipment to inspect it. Hover a cooling unit to see its range.';
     setHTML($('#hint'), h);
@@ -265,12 +281,17 @@
     el.hidden = false;
     const d = EQ[t.type];
     const rows = [];
-    rows.push(['Status', t.status === 'ok' ? (S.powered ? '🟢 Running' : '⚫ No power') : `🔴 Broken · ${S.techs ? `repair in ~${Math.max(1, Math.ceil(t.repair))}h` : 'no technicians!'}`]);
+    rows.push(['Status', t.status === 'ok' ? (t.alarm > 0 ? `🟠 BMS alarm: ${esc(t.alarmMsg || 'service due')} · fails in ~${t.alarm}h` : S.powered ? '🟢 Running' : '⚫ No power') : `🔴 Broken · ${S.techs ? `repair in ~${Math.max(1, Math.ceil(t.repair))}h` : 'no technicians!'}`]);
     if (d.power) rows.push(['Power draw', kw(d.power)]);
     if (d.compute) rows.push(['Compute', `+${d.compute}${S.upgrades.virtualization ? ' ×1.3 (virtualized)' : ''}`]);
     if (d.storage) rows.push(['Storage', `+${d.storage} TB`]);
     if (d.bw) rows.push(['Bandwidth', `+${d.bw} Gbps`]);
-    if (d.cooling) rows.push(['Cooling', `${d.cooling} kW within ${d.radius} tile(s), COP ${d.cop}`]);
+    if (d.cooling) rows.push(['Cooling', `${d.cooling} kW (${tons(d.cooling)}) within ${d.radius} tile(s), ${d.chw ? 'fed by the chiller plant' : `COP ${d.cop}`}`]);
+    if (d.cooling && t.status === 'ok') rows.push([d.chw ? 'Fan / valve' : 'Load', `${Math.round((t.load || 0) * 100)}%${d.chw && S.upgrades.vfd ? ` · fan power ${Math.round(Math.max(0.1, Math.pow(t.load || 0, 3)) * 100)}% (VFD)` : d.chw ? ' · fans at 100% (no VFD)' : ''}`]);
+    if (d.chwCap) rows.push(['Chilled water', `${d.chwCap} kW (${tons(d.chwCap)}), COP ${d.cop}${d.needsTower ? ' · needs a Cooling Tower' : ''}`]);
+    if (d.chwCap) rows.push(['Plant now', `${Math.round(S.m.plant.load)} kW of ${Math.round(S.m.plant.cap)} kW · ${S.m.plant.kwPerTon ? S.m.plant.kwPerTon.toFixed(2) + ' kW/ton' : 'idle'}`]);
+    if (d.reject) rows.push(['Heat rejection', `${d.reject} kW · fan ${d.fan} kW · now ${Math.round(S.m.plant.towerFrac * 100)}% loaded`]);
+    if (d.bmsCtl) rows.push(['Controls', 'Setpoints, staging, alarms and trends: see the <b>Controls</b> tab']);
     if (d.ups) rows.push(['Backup', `${d.ups} kW battery bridge`]);
     if (d.gen) rows.push(['Backup', `${d.gen} kW generator`]);
     const heat = DCB.heatOf(d);
@@ -313,6 +334,12 @@
         if (d.ups) specs.push(`🔋${d.ups}kW`);
         if (d.gen) specs.push(`⛽${d.gen}kW`);
         if (d.security) specs.push('🛡️');
+        if (d.chw) specs.push('CHW');
+        if (d.chwCap) specs.push(`🧊${d.chwCap}kW COP${d.cop}`);
+        if (d.reject) specs.push(`💨${d.reject}kW`);
+        if (d.bmsCtl) specs.push('🎛️ controls');
+        if (d.fireSafe) specs.push('🧯 VESDA');
+        if (d.accessCtl) specs.push('🔐 badge+CCTV');
         if (d.power) specs.push(`⚡${d.power}`);
         const tip = `${d.desc}${locked ? `\n🔒 Unlock with the "${DCB.UPGRADES[d.requires].name}" upgrade.` : ''}\n\n📘 ${d.lesson}`;
         html += `<button class="item ${tool === id ? 'active' : ''} ${locked ? 'locked' : ''} ${poor ? 'poor' : ''}" data-build="${id}" data-tip="${esc(tip)}">
@@ -344,7 +371,7 @@
     if (el.matches(':hover') && cache.has(el) && !tabDirty) return;
     tabDirty = false;
     document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-    const fn = { clients: tabClients, upgrades: tabUpgrades, team: tabTeam, goals: tabGoals, handbook: tabHandbook }[tab];
+    const fn = { clients: tabClients, upgrades: tabUpgrades, bms: tabControls, team: tabTeam, goals: tabGoals, handbook: tabHandbook }[tab];
     setHTML(el, fn());
   }
   let tabDirty = true;
@@ -358,7 +385,7 @@
       const err = sim.acceptCheck(S, o);
       h += `<div class="card offer">
         <div class="c-head"><span class="c-icon">${o.icon}</span><div><b>${esc(o.name)}</b><div class="muted">${o.days} days · expires in ${o.expires}h</div></div><div class="pay">${money(o.pay)}<small>/day</small></div></div>
-        <div class="reqs"><span>🧮 ${o.compute}</span><span>💾 ${o.storage} TB</span><span>🌐 ${o.bw} Gbps</span><span class="sla" data-tip="Service Level Agreement: you promise ${o.sla}% uptime, which allows about ${slaDowntime(o.sla)} of downtime. Drop below it and you pay service credits.">SLA ${o.sla}%</span>${o.needs ? '<span>🛡️ Firewall</span>' : ''}</div>
+        <div class="reqs"><span>🧮 ${o.compute}</span><span>💾 ${o.storage} TB</span><span>🌐 ${o.bw} Gbps</span><span class="sla" data-tip="Service Level Agreement: you promise ${o.sla}% uptime, which allows about ${slaDowntime(o.sla)} of downtime. Drop below it and you pay service credits.">SLA ${o.sla}%</span>${[].concat(o.needs || []).map((n) => `<span>${{ firewall: '🛡️ Firewall', access: '🔐 Access control', suppression: '🧯 Fire suppression' }[n]}</span>`).join('')}</div>
         ${err ? `<div class="err">${esc(err)}</div>` : ''}
         <div class="actions"><button class="btn primary" data-action="accept" data-id="${o.id}" ${err ? 'disabled' : ''}>Sign contract</button><button class="btn ghost" data-action="decline" data-id="${o.id}">Decline</button></div>
       </div>`;
@@ -447,8 +474,124 @@
     return h + '</ol>';
   }
 
+  function spark(series, colors, label, fmt, band) {
+    const W = 280;
+    const H = 44;
+    const all = series.flat().filter((v) => Number.isFinite(v));
+    if (all.length < 2) return `<div class="trend"><div class="tl">${label}</div><div class="muted">collecting data…</div></div>`;
+    let lo = Math.min(...all);
+    let hi = Math.max(...all);
+    if (band) { lo = Math.min(lo, band[0]); hi = Math.max(hi, band[1]); }
+    if (hi - lo < 1e-6) { hi += 0.5; lo -= 0.5; }
+    const y = (v) => (H - 4 - ((v - lo) / (hi - lo)) * (H - 8)).toFixed(1);
+    const lines = series.map((vals, k) => {
+      const pts = vals.map((v, i) => `${((i / Math.max(1, vals.length - 1)) * W).toFixed(1)},${y(v)}`).join(' ');
+      return `<polyline points="${pts}" fill="none" stroke="${colors[k]}" stroke-width="2" stroke-linejoin="round" />`;
+    }).join('');
+    const bandRect = band ? `<rect x="0" y="${y(band[1])}" width="${W}" height="${(y(band[0]) - y(band[1])).toFixed(1)}" class="band" />` : '';
+    const last = series[0][series[0].length - 1];
+    return `<div class="trend"><div class="tl">${label}<b>${fmt(last)}</b></div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${label} trend">${bandRect}${lines}</svg></div>`;
+  }
+
+  function tabControls() {
+    const m = S.m;
+    const p = m.plant;
+    if (!m.bms) {
+      return `<div class="card bms-off"><div class="bms-head"><span class="dot"></span> BMS Workstation · <b>offline</b></div>
+        <p>You have no <b>BMS Controller</b> online, so you are running the building blind: fixed setpoints, no alarms, no trends, and chillers sharing load evenly instead of efficiently.</p>
+        <p>Build a <b>BMS Controller</b> (Build → Controls, Fire & Security) to unlock:</p>
+        <ul class="rules"><li>🎚️ Supply air <b>setpoint</b> control</li><li>🧊 Chiller plant graphic with kW/ton and CHW temps</li><li>⚙️ Automatic <b>chiller staging</b> (most efficient first)</li><li>🚨 Predictive <b>alarms</b> 12h before failures</li><li>📈 48-hour <b>trends</b></li><li>🏭 Automated <b>demand response</b> income</li></ul>
+        <p class="lesson">📘 "You can't manage what you don't measure." The BMS is the nervous system of a data center: sensors report, controllers decide (PID loops), actuators move valves and fan speeds.</p></div>`;
+    }
+    const points = S.tiles.reduce((a, t) => a + (t ? ({ chiller_wc: 80, chiller_ac: 60, tower: 30, crah: 18, crac: 15, inrow: 12, cdu: 20, ups: 25, generator: 20, suppression: 16, access: 10 }[t.type] || 4) : 0), 0);
+    const pct = (v) => `${Math.round(v * 100)}%`;
+    const n = (type) => m.counts[type] || 0;
+    const crahs = S.tiles.filter((t) => t && t.type === 'crah' && t.status === 'ok');
+    const crahLoad = crahs.length ? crahs.reduce((a, t) => a + (t.load || 0), 0) / crahs.length : 0;
+    const racks = S.tiles.filter((t) => t && t.status === 'ok' && EQ[t.type].compute);
+    const inlet = racks.length ? racks.reduce((a, t) => a + t.temp, 0) / racks.length : m.sat;
+    const wue = S.stats.itEnergy > 0 ? S.stats.water / S.stats.itEnergy : 0;
+    const hasPlant = p.design > 0;
+    const alarms = [];
+    S.tiles.forEach((t) => {
+      if (!t) return;
+      const d = EQ[t.type];
+      if (t.status === 'broken') alarms.push(['crit', `${d.name}`, 'FAULT: equipment failed']);
+      else if (t.alarm > 0) alarms.push(['warn', `${d.name}`, `${t.alarmMsg || 'service due'} (fails in ~${t.alarm}h)`]);
+      else if (DCB.heatOf(d) > 0 && t.temp > C.tempThrottle) alarms.push(['crit', `${d.name}`, `HIGH TEMP ${t.temp.toFixed(1)} °C`]);
+      else if (DCB.heatOf(d) > 0 && t.temp > C.tempWarn) alarms.push(['warn', `${d.name}`, `Inlet above ASHRAE range: ${t.temp.toFixed(1)} °C`]);
+    });
+    if (p.short) alarms.unshift(['crit', 'CHW Plant', `Capacity low: ${Math.round(p.cap)} of ${Math.round(p.wanted)} kW`]);
+    if (p.wcUsable < p.wcChw - 0.5) alarms.unshift(['warn', 'Condenser Water', 'Water-cooled chiller lacks cooling tower capacity']);
+    if (S.m.facility > S.gridCap * 0.9) alarms.unshift(['crit', 'Main Switchboard', 'Demand above 90% of utility feed']);
+    const tr = S.trend;
+    const kwOut = p.kwPerTon ? p.kwPerTon.toFixed(2) : '—';
+    const kwCls = !p.kwPerTon ? '' : p.kwPerTon <= 0.6 ? 'good' : p.kwPerTon <= 0.9 ? 'ok' : 'bad';
+    return `<div class="bms-head"><span class="dot on"></span> BMS Workstation · <b>online</b> · ${points.toLocaleString()} points · BACnet/IP</div>
+      <h3>Chilled water plant</h3>
+      ${hasPlant ? `<div class="plant">
+        <div class="pnode" data-tip="Cooling towers reject heat from the water-cooled chillers' condensers by evaporating water.">🗼 <b>Cooling towers</b> ×${n('tower')}<span>${n('tower') ? `fan ${pct(S.upgrades.vfd ? Math.max(0.1, p.towerFrac) : 1)} · ${Math.round(p.water)} L/h` : 'none'}</span></div>
+        <div class="pipe cond"><span>condenser water</span></div>
+        <div class="pnode" data-tip="With a BMS, the most efficient chillers are staged on first.">🧊 <b>Chillers</b> WC ×${n('chiller_wc')} · AC ×${n('chiller_ac')}<span>WC ${Math.round(p.wcLoad)}/${Math.round(p.wcUsable)} kW · AC ${Math.round(p.acLoad)}/${Math.round(p.airChw)} kW</span></div>
+        <div class="pipe chw"><span>CHWS ${p.chwSupply.toFixed(1)} °C ↓</span><span>↑ CHWR ${p.chwReturn.toFixed(1)} °C</span></div>
+        <div class="pnode" data-tip="CRAH coils use chilled water to cool the air blown to the racks.">🌀 <b>CRAHs</b> ×${crahs.length}<span>valve/fan ${pct(crahLoad)}${p.short ? ` · limited to ${pct(p.crahScale)}` : ''}</span></div>
+        <div class="pipe air"><span>supply air ${m.sat.toFixed(1)} °C</span></div>
+        <div class="pnode">🖥️ <b>Racks</b> ×${racks.length}<span>avg inlet ${inlet.toFixed(1)} °C</span></div>
+      </div>` : '<p class="muted">No chillers yet. CRAC and in-row units have their own compressors. Build chillers, a cooling tower and CRAHs for a central plant: far more efficient at scale.</p>'}
+      <div class="kpis">
+        <div class="kpi ${kwCls}" data-tip="Plant electricity (chillers + pumps + tower fans) per ton of cooling. Excellent is ~0.5–0.6."><span>kW/ton</span><b>${kwOut}</b></div>
+        <div class="kpi" data-tip="Chilled water load. 1 ton = 3.517 kW."><span>CHW load</span><b>${p.tons.toFixed(1)} t</b></div>
+        <div class="kpi" data-tip="Power Usage Effectiveness."><span>PUE</span><b>${m.it ? m.pue.toFixed(2) : '—'}</b></div>
+        <div class="kpi" data-tip="Water Usage Effectiveness: liters of water per kWh of IT energy (lifetime)."><span>WUE L/kWh</span><b>${wue.toFixed(2)}</b></div>
+      </div>
+      <table class="ledger small">
+        <tr><td>Chillers (compressors)</td><td>${kw(p.chillerKw)}</td></tr>
+        <tr><td>CHW pumps</td><td>${kw(p.pumpKw)}</td></tr>
+        <tr><td>Tower fans</td><td>${kw(p.towerKw)}</td></tr>
+        <tr><td>CRAH fans</td><td>${kw(p.fanKw)}</td></tr>
+        <tr><td>CRAC / in-row / CDU</td><td>${kw(Math.max(0, m.cooling - p.chillerKw - p.pumpKw - p.towerKw - p.fanKw))}</td></tr>
+        <tr class="total"><td>Total cooling power</td><td>${kw(m.cooling)}</td></tr>
+      </table>
+      <h3>Setpoint</h3>
+      <div class="card setpoint">
+        <label for="sat">Supply air temperature: <b id="sat-val">${S.controls.sat.toFixed(1)} °C</b>${S.fx.dr > 0 ? ' <span class="chip info">DR +3 °C</span>' : ''}</label>
+        <input type="range" id="sat" min="18" max="27" step="0.5" value="${S.controls.sat}" data-action="sat" />
+        <div class="scale"><span>18 °C</span><span>ASHRAE recommended 18–27 °C</span><span>27 °C</span></div>
+        <p class="muted">Each +1 °C cuts compressor energy about 4% and adds economizer hours, but racks run warmer. Chilled water supply resets with it (${p.chwSupply.toFixed(1)} °C).</p>
+      </div>
+      <h3>Sequences of operation</h3>
+      <ul class="seq">
+        <li class="on">✔ Chiller staging: most efficient first</li>
+        <li class="${S.upgrades.vfd ? 'on' : ''}">${S.upgrades.vfd ? '✔' : '✖'} Variable speed fans &amp; pumps (VFD)</li>
+        <li class="${S.upgrades.freeair || S.upgrades.wse ? 'on' : ''}">${S.upgrades.freeair || S.upgrades.wse ? '✔' : '✖'} Economizer: <b>${p.economizer}</b></li>
+        <li class="${S.upgrades.optimizer ? 'on' : ''}">${S.upgrades.optimizer ? '✔' : '✖'} Central plant optimization</li>
+        <li class="on">✔ Predictive alarms (12h warning)</li>
+      </ul>
+      <h3>Alarms <span class="muted">(${alarms.length})</span></h3>
+      ${alarms.length ? `<ul class="alarms">${alarms.slice(0, 12).map(([lvl, src, msg]) => `<li class="${lvl}"><b>${esc(src)}</b> ${esc(msg)}</li>`).join('')}</ul>` : '<p class="muted">✅ No active alarms.</p>'}
+      <h3>Trends (48h)</h3>
+      ${spark([tr.map((x) => x.inlet), tr.map((x) => x.sat)], ['var(--warn)', 'var(--accent-2)'], 'Avg rack inlet vs setpoint', (v) => `${v.toFixed(1)} °C`, [18, 27])}
+      ${spark([tr.map((x) => x.pue)], ['var(--accent)'], 'PUE', (v) => v.toFixed(2))}
+      ${spark([tr.map((x) => x.cool)], ['#7fd3ff'], 'Cooling power', (v) => kw(v))}
+      ${spark([tr.map((x) => x.out)], ['#a27bff'], 'Outside air', (v) => `${v.toFixed(1)} °C`)}`;
+  }
+
   function tabHandbook() {
-    let h = `<div class="card"><b>🧠 The golden rules</b><ol class="rules">
+    let h = `<div class="card"><b>🧊 HVAC 101: where the heat goes</b><ol class="rules">
+      <li><b>Chips</b> turn electricity into heat, and server fans push it into the room air.</li>
+      <li><b>CRAH coil</b>: the warm air passes over a coil full of chilled water (~7–15 °C).</li>
+      <li><b>Chilled water loop</b>: pumps carry the heat back to the plant (supply cold, return warm; the difference is ΔT).</li>
+      <li><b>Chiller</b>: a refrigeration cycle moves heat from the chilled water into the condenser water.</li>
+      <li><b>Cooling tower</b>: evaporation dumps the heat outside. On cold days, a <b>waterside economizer</b> skips the chiller.</li>
+    </ol><p class="muted">A CRAC does all of this in one box with its own compressor: simple, but less efficient at scale.</p></div>
+    <div class="card"><b>🎛️ Controls 101</b><ol class="rules">
+      <li><b>Sensors</b> measure temperature, humidity, pressure, flow and power.</li>
+      <li><b>Controllers</b> run PID loops against a <b>setpoint</b>, following the <b>sequence of operations</b>.</li>
+      <li><b>Actuators</b> move valves and dampers; <b>VFDs</b> change fan and pump speeds.</li>
+      <li>The <b>BMS</b> ties it together over BACnet: graphics, alarms, trends, scheduling and optimization.</li>
+      <li><b>Fire &amp; security</b> systems (VESDA, clean agent, access control, CCTV) protect people and uptime.</li>
+    </ol></div>
+    <div class="card"><b>🧠 The golden rules</b><ol class="rules">
       <li><b>Every watt becomes heat.</b> Each rack needs cooling in range, or it throttles and breaks.</li>
       <li><b>Power chain:</b> UPS (instant) + Generator (long outages). You need both, and big enough for your load.</li>
       <li><b>Watch your feed.</b> Total power, including cooling, must stay under your grid connection.</li>
@@ -677,6 +820,25 @@
     }
   });
 
+  // Setpoint slider on the Controls tab
+  document.addEventListener('input', (e) => {
+    if (e.target.id !== 'sat') return;
+    const r = sim.setSat(S, +e.target.value);
+    if (!r.ok) { flash(r.msg); return; }
+    $('#sat-val').textContent = `${S.controls.sat.toFixed(1)} °C`;
+    renderStats();
+    renderFloor();
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.id !== 'sat') return;
+    log(`Supply air setpoint changed to ${S.controls.sat.toFixed(1)} °C.`);
+    tabDirty = true;
+    render();
+  });
+  function log(msg) {
+    S.log.unshift({ t: sim.timeLabel(S), msg: `🎛️ ${msg}`, kind: 'info' });
+  }
+
   $('#tool-sell').addEventListener('click', () => { tool = tool === 'sell' ? null : 'sell'; selected = null; paletteDirty = true; render(); });
   $('#toggle-heat').addEventListener('change', (e) => { heatmap = e.target.checked; render(); });
   $('#btn-sound').addEventListener('click', () => { sound = !sound; renderStats(); });
@@ -736,6 +898,7 @@
     const heat = DCB.heatOf(d);
     let h = `<b>${d.name}</b>`;
     if (t.status === 'broken') h += '<br>🔴 Broken, awaiting repair';
+    if (t.alarm > 0) h += `<br>🚨 ${esc(t.alarmMsg || 'BMS alarm')}`;
     if (heat > 0) h += `<br>🌡️ ${t.temp.toFixed(1)} °C · ${Math.round(t.cool * 100)}% cooled`;
     if (d.cooling) h += `<br>❄️ ${d.cooling} kW, range ${d.radius}`;
     showTip(h, e);

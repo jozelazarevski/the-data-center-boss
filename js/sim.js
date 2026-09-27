@@ -40,9 +40,11 @@
       techs: 1,
       powered: true,
       onGenerator: false,
-      fx: { outage: 0, outageElapsed: 0, outageDown: 0, outageCause: '', heatwave: 0, ddos: 0, fiber: 0, spike: 0, spikeShort: false, priceSpike: 0, sale: 0, ransom: 0 },
+      fx: { outage: 0, outageElapsed: 0, outageDown: 0, outageCause: '', heatwave: 0, ddos: 0, fiber: 0, spike: 0, spikeShort: false, priceSpike: 0, sale: 0, ransom: 0, evac: 0, dr: 0 },
+      controls: { sat: C.roomTemp },
+      trend: [],
       timers: { offer: 2, event: 48, quiz: 20, fact: 6 },
-      stats: { revenue: 0, capex: 0, opex: 0, energy: 0, carbon: 0, hours: 0, history: [], signed: 0, completed: 0, outagesSurvived: 0, quizRight: 0, quizTotal: 0 },
+      stats: { revenue: 0, capex: 0, opex: 0, energy: 0, water: 0, itEnergy: 0, carbon: 0, hours: 0, history: [], signed: 0, completed: 0, outagesSurvived: 0, quizRight: 0, quizTotal: 0 },
       ledger: emptyLedger(),
       lastLedger: null,
       flags: {},
@@ -64,6 +66,30 @@
     log(s, 'Welcome, Boss! You have an empty room, $120,000 and big dreams.', 'info');
     computeMetrics(s);
     return s;
+  }
+
+  // Bring saves from older versions up to date.
+  function migrate(s) {
+    s.controls = s.controls || { sat: C.roomTemp };
+    s.trend = s.trend || [];
+    s.fx.evac = s.fx.evac || 0;
+    s.fx.dr = s.fx.dr || 0;
+    s.stats.water = s.stats.water || 0;
+    s.stats.itEnergy = s.stats.itEnergy || 0;
+    for (const t of s.tiles) if (t) t.alarm = t.alarm || 0;
+    if (s.quizOrder.length < DCB.QUIZ.length) {
+      const have = new Set(s.quizOrder);
+      for (const i of shuffled(DCB.QUIZ.length)) if (!have.has(i)) s.quizOrder.push(i);
+    }
+    computeMetrics(s);
+    return s;
+  }
+
+  function setSat(s, v) {
+    if (!s.m.bms) return { ok: false, msg: 'You need an online BMS Controller to change setpoints.' };
+    s.controls.sat = clamp(Math.round(v * 2) / 2, 18, 27);
+    computeMetrics(s);
+    return { ok: true };
   }
 
   function emptyLedger() {
@@ -98,63 +124,177 @@
     return Math.round(EQ[type].cost * (s.fx.sale > 0 ? 0.75 : 1));
   }
 
-  /* ---------- thermal model ---------- */
+  /* ---------- thermal model + HVAC plant ---------- */
+  const TON = 3.517; // kW per ton of refrigeration
+
+  // Supply air temperature the controls are holding (demand response bumps it temporarily).
+  function effectiveSat(s) {
+    return s.controls.sat + (s.fx.dr > 0 ? 3 : 0);
+  }
+
+  // Compressors work less when the air/water they make can be warmer: ~4% per °C.
+  function satFactor(sat) {
+    return clamp(1 - 0.04 * (sat - 20), 0.6, 1.2);
+  }
+
   function thermal(s, powered) {
     const up = s.upgrades;
-    const mult = (up.containment ? 1.25 : 1) * (s.fx.heatwave > 0 ? 0.85 : 1);
+    const sat = effectiveSat(s);
+    const out = outsideTemp(s);
+    const heatwave = s.fx.heatwave > 0;
+    const mult = (up.containment ? 1.25 : 1) * (heatwave ? 0.85 : 1);
+    const vfd = !!up.vfd;
     const sources = [];
     const coolers = [];
+    let airChw = 0, wcChw = 0, towerCap = 0, towerFan = 0, bms = 0;
     for (let i = 0; i < s.tiles.length; i++) {
       const t = s.tiles[i];
       if (!t) continue;
       t.cool = 1;
-      t.target = C.roomTemp;
+      t.target = sat;
+      t.load = 0;
       if (!powered || t.status !== 'ok') continue;
       const d = EQ[t.type];
       const heat = DCB.heatOf(d);
       const x = i % C.maxW;
       const y = Math.floor(i / C.maxW);
       if (heat > 0) sources.push({ t, x, y, heat, rem: heat, air: 0 });
-      if (d.cooling) coolers.push({ d, x, y });
+      if (d.cooling) coolers.push({ t, d, x, y, take: 0 });
+      if (d.chwCap) { if (d.needsTower) wcChw += d.chwCap; else airChw += d.chwCap; }
+      if (d.reject) { towerCap += d.reject; towerFan += d.fan; }
+      if (d.bmsCtl) bms++;
     }
-    let electric = 0;
+    // Water-cooled chillers can only run as far as the towers can reject their heat (load + compressor work).
+    const wcUsable = Math.min(wcChw, towerCap / 1.17);
+    const plantCap = airChw + wcUsable;
+
+    function allocate(chwScale) {
+      for (const src of sources) { src.rem = src.heat; src.air = 0; }
+      let chwDemand = 0;
+      for (const c of coolers) {
+        const cap = c.d.cooling * mult * (c.d.chw ? chwScale : 1);
+        c.take = 0;
+        const near = [];
+        let sum = 0;
+        for (const src of sources) {
+          if (Math.max(Math.abs(src.x - c.x), Math.abs(src.y - c.y)) > c.d.radius) continue;
+          const avail = c.d.liquid ? src.rem : Math.min(src.rem, Math.max(0, AIR_LIMIT - src.air));
+          if (avail <= 0) continue;
+          near.push([src, avail]);
+          sum += avail;
+        }
+        if (sum <= 0 || cap <= 0) continue;
+        const take = Math.min(cap, sum);
+        const f = take / sum;
+        for (const [src, avail] of near) {
+          const x = avail * f;
+          src.rem -= x;
+          if (!c.d.liquid) src.air += x;
+        }
+        c.take = take;
+        if (c.d.chw) chwDemand += take;
+      }
+      return chwDemand;
+    }
+    // CRAHs can only deliver what the chiller plant can make: scale them back if the plant is short.
+    let chwScale = 1;
+    let chwDemand = allocate(1);
+    const chwWanted = chwDemand;
+    for (let k = 0; k < 4 && chwDemand > plantCap + 0.01; k++) {
+      chwScale *= plantCap / chwDemand;
+      chwDemand = allocate(chwScale);
+    }
+    const chwLoad = Math.min(chwDemand, plantCap);
+
+    // --- electricity for room-level cooling (CRAC, in-row, CDU compressors; CRAH fans) ---
+    let dxKw = 0;
+    let fanKw = 0;
     let removed = 0;
     for (const c of coolers) {
-      const cap = c.d.cooling * mult;
-      const near = [];
-      let sum = 0;
-      for (const src of sources) {
-        if (Math.max(Math.abs(src.x - c.x), Math.abs(src.y - c.y)) > c.d.radius) continue;
-        const avail = c.d.liquid ? src.rem : Math.min(src.rem, Math.max(0, AIR_LIMIT - src.air));
-        if (avail <= 0) continue;
-        near.push([src, avail]);
-        sum += avail;
-      }
-      if (sum <= 0) continue;
-      const take = Math.min(cap, sum);
-      const f = take / sum;
-      for (const [src, avail] of near) {
-        const x = avail * f;
-        src.rem -= x;
-        if (!c.d.liquid) src.air += x;
-      }
-      electric += take / c.d.cop;
-      removed += take;
+      removed += c.take;
+      const load = c.take / (c.d.cooling * mult);
+      c.t.load = load;
+      if (c.d.chw) fanKw += c.d.fan * (vfd ? Math.max(0.1, Math.pow(load, 3)) : 1);
+      else dxKw += c.take / c.d.cop;
     }
-    let factor = s.fx.heatwave > 0 ? 1.25 : 1;
+    // Hotter outside air = higher condensing temperature = compressors work harder.
+    const lift = (k) => clamp(1 + k * (out - 15), 0.75, 1.6);
+    let dxFactor = satFactor(sat) * lift(0.02);
+    let economizer = 'off';
     if (up.freeair) {
-      const out = outsideTemp(s);
-      factor *= out < 12 ? 0.4 : out < 20 ? 0.65 : out < 25 ? 0.85 : 1;
+      const shift = sat - 20;
+      const f = out < 12 + shift ? 0.4 : out < 20 + shift ? 0.65 : out < 25 + shift ? 0.85 : 1;
+      dxFactor *= f;
+      if (f < 1) economizer = 'airside';
     }
+
+    // --- chiller plant ---
+    // With a BMS the most efficient (water-cooled) chillers are staged first; without one, load is shared evenly.
+    let wcLoad = 0;
+    let acLoad = 0;
+    if (chwLoad > 0) {
+      if (bms) { wcLoad = Math.min(chwLoad, wcUsable); acLoad = chwLoad - wcLoad; }
+      else { wcLoad = plantCap ? chwLoad * (wcUsable / plantCap) : 0; acLoad = chwLoad - wcLoad; }
+    }
+    let wseFactor = 1;
+    if (up.wse && towerCap > 0 && chwLoad > 0) {
+      // Colder outside than the chilled water we need → the tower makes it for (almost) free.
+      if (out < sat - 12) { wseFactor = 0.1; economizer = 'waterside (full)'; }
+      else if (out < sat - 6) { wseFactor = 0.5; economizer = 'waterside (partial)'; }
+    }
+    const chwSat = satFactor(sat);
+    const optim = up.optimizer && bms ? 0.88 : 1;
+    const chillerKw = (wcLoad / 6 * lift(0.012) + acLoad / 3.2 * lift(0.025)) * chwSat * optim *
+      (up.wse && towerCap > 0 ? wseFactor : 1);
+    const plantDesign = airChw + wcChw;
+    const plantFrac = plantDesign ? chwLoad / plantDesign : 0;
+    const pumpDesign = 0.02 * plantDesign;
+    const pumpKw = plantDesign ? pumpDesign * (vfd ? Math.max(0.1, Math.pow(plantFrac, 3)) : 1) * optim : 0;
+    // Towers reject the water-cooled chillers' heat plus compressor work; in economizer mode they cool the whole loop.
+    const rejected = wseFactor < 1 ? Math.min(towerCap, chwLoad * 1.05) : wcLoad * 1.17;
+    const towerFrac = towerCap ? Math.min(1, rejected / towerCap) : 0;
+    const towerKw = towerCap ? towerFan * (vfd ? Math.max(0.1, Math.pow(towerFrac, 3)) : 1) : 0;
+    const plantKw = chillerKw + pumpKw + towerKw;
+    const commissioning = up.commissioning ? 0.92 : 1;
+
     let unremoved = 0;
     for (const src of sources) {
       const u = src.rem / src.heat;
       src.t.cool = 1 - u;
       // Small heat sources barely warm up even when uncooled; a full rack cooks itself.
-      src.t.target = C.roomTemp + 24 * u * Math.min(1, src.heat / 4) + (s.fx.heatwave > 0 ? 2 : 0) + (up.containment ? 0 : 1);
+      src.t.target = sat + 24 * u * Math.min(1, src.heat / 4) + (heatwave ? 2 : 0) + (up.containment ? 0 : 1);
       unremoved += src.rem;
     }
-    return { coolingKw: electric * factor, removed, unremoved };
+    const tons = chwLoad / TON;
+    const chwSupply = 7 + (sat - 20) * 0.6;
+    return {
+      coolingKw: (dxKw * dxFactor + fanKw + plantKw) * commissioning,
+      removed,
+      unremoved,
+      plant: {
+        cap: plantCap,
+        design: plantDesign,
+        load: chwLoad,
+        wanted: chwWanted,
+        short: chwWanted > plantCap + 0.5,
+        tons,
+        chillerKw: chillerKw * commissioning,
+        pumpKw: pumpKw * commissioning,
+        towerKw: towerKw * commissioning,
+        fanKw: fanKw * commissioning,
+        kwPerTon: tons > 0.5 ? (plantKw * commissioning) / tons : 0,
+        wcLoad, acLoad, wcChw, wcUsable, airChw, towerCap,
+        towerFrac,
+        pumpFrac: plantDesign ? (vfd ? Math.max(0.1, plantFrac) : 1) : 0,
+        chwSupply,
+        chwReturn: chwSupply + (chwLoad > 0 ? 3 + 4 * plantFrac : 0),
+        water: rejected * 1.6, // liters evaporated per hour (≈1.6 L per kWh rejected)
+        economizer,
+        crahScale: chwScale,
+      },
+      sat,
+      bms,
+    };
   }
 
   /* ---------- metrics ---------- */
@@ -166,6 +306,7 @@
       it: 0, aux: 0, cooling: 0, lights: C.lightsKw, facility: 0, pue: 0,
       computeCap: 0, storageCap: 0, bwCap: 0, computeInst: 0, storageInst: 0, bwInst: 0,
       upsCap: 0, genCap: 0, coolingCap: 0, firewall: 0, counts: {}, broken: 0, hot: 0, equipValue: 0,
+      alarms: 0, suppression: 0, access: 0,
     };
     for (let i = 0; i < s.tiles.length; i++) {
       const t = s.tiles[i];
@@ -177,10 +318,13 @@
       m.storageInst += d.storage || 0;
       m.bwInst += d.bw || 0;
       if (d.security) m.firewall++;
+      if (d.fireSafe) m.suppression++;
+      if (d.accessCtl) m.access++;
       if (t.status !== 'ok') { m.broken++; continue; }
+      if (t.alarm > 0) m.alarms++;
       if (!powered) continue;
       if (d.cat === 'compute' || d.cat === 'network') m.it += d.power;
-      else m.aux += d.power + (d.idle || 0);
+      else m.aux += d.power + (d.idle || 0) * (up.vfd ? 0.4 : 1);
       const throttled = t.temp > C.tempThrottle;
       if (throttled) m.hot++;
       m.computeCap += (d.compute || 0) * virt * (throttled ? 0.5 : 1);
@@ -193,6 +337,9 @@
     const th = thermal(s, powered);
     m.cooling = th.coolingKw;
     m.unremoved = th.unremoved;
+    m.plant = th.plant;
+    m.sat = th.sat;
+    m.bms = th.bms;
     if (!powered) m.lights = 0;
     m.facility = m.it + m.aux + m.cooling + m.lights;
     m.pue = m.it > 0 ? m.facility / m.it : 0;
@@ -208,7 +355,7 @@
     if (s.fx.fiber > 0 && !up.dualfiber) m.bwCap = 0;
 
     const ratio = (cap, dem) => (dem <= 0 ? 1 : Math.min(1, cap / dem));
-    m.availability = !powered || s.fx.ransom > 0
+    m.availability = !powered || s.fx.ransom > 0 || s.fx.evac > 0
       ? 0
       : Math.min(ratio(m.computeCap, m.demandCompute), ratio(m.storageCap, m.demandStorage), ratio(m.bwCap, m.demandBw));
     m.outside = outsideTemp(s);
@@ -238,7 +385,7 @@
     const cost = priceOf(s, type);
     s.money -= cost;
     s.stats.capex += cost;
-    s.tiles[i] = { id: s.nextId++, type, status: 'ok', temp: C.roomTemp + 2, repair: 0, cool: 1, target: C.roomTemp };
+    s.tiles[i] = { id: s.nextId++, type, status: 'ok', temp: s.controls.sat + 2, repair: 0, cool: 1, target: s.controls.sat, alarm: 0, svc: 0 };
     computeMetrics(s);
     checkGoals(s);
     return { ok: true, cost };
@@ -341,7 +488,10 @@
 
   function acceptCheck(s, o) {
     const m = s.m;
-    if (o.needs === 'firewall' && !m.firewall) return 'This client requires a Firewall for security compliance.';
+    const needs = [].concat(o.needs || []);
+    if (needs.includes('firewall') && !m.firewall) return 'This client requires a Firewall for security compliance.';
+    if (needs.includes('access') && !m.access) return 'This client requires Access Control & CCTV (physical security audit).';
+    if (needs.includes('suppression') && !m.suppression) return 'This client requires Fire Detection & Suppression.';
     const free = (inst, com) => Math.floor(inst - com);
     if (free(m.computeInst, m.committedCompute) < o.compute) return `Not enough compute: need ${o.compute}, you have ${free(m.computeInst, m.committedCompute)} free. Build more racks!`;
     if (free(m.storageInst, m.committedStorage) < o.storage) return `Not enough storage: need ${o.storage} TB, you have ${free(m.storageInst, m.committedStorage)} TB free. Build storage arrays!`;
@@ -367,6 +517,30 @@
     s.offers = s.offers.filter((x) => x.id !== id);
   }
 
+  const ALARMS = {
+    rack: ['power supply fan speed abnormal', 'CPU temperature sensor out of range'],
+    dense: ['blade chassis fan failure predicted', 'power supply efficiency dropping'],
+    gpu: ['coolant flow low at cold plate', 'GPU memory errors increasing'],
+    storage: ['disk SMART error count rising', 'controller battery degraded'],
+    crac: ['compressor discharge pressure high', 'fan bearing vibration high', 'filter differential pressure high'],
+    inrow: ['fan bearing vibration high', 'condensate pump fault'],
+    cdu: ['pump differential pressure low', 'coolant conductivity high'],
+    crah: ['fan bearing vibration high', 'chilled water valve not responding to command', 'dirty filter alarm'],
+    chiller_ac: ['condenser fan fault', 'refrigerant charge low'],
+    chiller_wc: ['compressor oil pressure low', 'condenser approach temperature high (fouled tubes)', 'refrigerant leak detected'],
+    tower: ['basin water level low', 'fan gearbox vibration high', 'water treatment conductivity high'],
+    bms: ['controller memory low', 'network trunk communication errors'],
+    suppression: ['VESDA pipe flow fault', 'agent cylinder pressure low'],
+    access: ['door held open', 'card reader offline'],
+    switch: ['optic receive power degraded', 'fan tray fault'],
+    firewall: ['license expiring', 'high CPU from traffic inspection'],
+    ups: ['battery string impedance rising', 'inverter over-temperature'],
+    generator: ['block heater failed', 'fuel level low', 'starting battery weak'],
+  };
+  function alarmText(type) {
+    return pick(ALARMS[type] || ['runtime hours exceeded service interval']);
+  }
+
   /* ---------- events ---------- */
   function backupPlan(s) {
     const m = computeMetrics(s, true);
@@ -376,10 +550,13 @@
 
   function outageOutcome(s) {
     const b = backupPlan(s);
+    const load = Math.round(b.load);
+    const upsNote = b.m.upsCap > 0 ? `Your UPS (${Math.round(b.m.upsCap)} kW) is too small for your ${load} kW load` : 'You have no UPS';
+    const genNote = b.m.genCap > 0 ? `your generators (${Math.round(b.m.genCap)} kW) are too small for your ${load} kW load` : 'you have no generator';
     if (b.ups && b.gen) return 'Your UPS caught the load instantly and the generators roared to life. Clients will not notice a thing. 😎';
-    if (b.gen) return 'Your generators will start, but with no UPS to bridge the ~15 second gap, every server crashes first. Expect some downtime and possibly damaged hardware.';
-    if (b.ups) return 'Your UPS batteries will keep things running for a little while, but with no generator they will run dry. Everything shuts down after that.';
-    if (s.m.upsCap || s.m.genCap) return `Your backup power is too small for your ${Math.round(b.load)} kW load! It will not help.`;
+    if (b.gen) return `Your generators will start, but ${upsNote.charAt(0).toLowerCase() + upsNote.slice(1)}, so nothing bridges the ~15 second gap. Every server crashes first. Expect some downtime and possibly damaged hardware.`;
+    if (b.ups) return `Your UPS batteries will keep things running for a little while, but ${genNote}. Everything shuts down after that.`;
+    if (b.m.upsCap || b.m.genCap) return `${upsNote}, and ${genNote}. Backup power will not help. Size backup for your whole facility load, cooling included!`;
     return 'You have no backup power. Everything goes dark until the grid comes back, and the sudden power loss may damage hardware.';
   }
 
@@ -402,6 +579,8 @@
   function breakTile(s, t) {
     t.status = 'broken';
     t.repair = C.repairHours;
+    t.alarm = 0;
+    t.svc = 0;
   }
 
   function triggerEvent(s, forced) {
@@ -413,6 +592,9 @@
         if (k === 'heatwave' && s.fx.heatwave > 0) return false;
         if ((k === 'spike' || k === 'ddos') && !s.contracts.length) return false;
         if ((k === 'outage' || k === 'squirrel') && s.fx.outage > 0) return false;
+        if (k === 'chiller_trip' && !s.tiles.some((t) => t && t.status === 'ok' && EQ[t.type].chwCap)) return false;
+        if (k === 'fire' && !s.tiles.some((t) => t && t.status === 'ok' && EQ[t.type].compute)) return false;
+        if (k === 'demand_response' && (s.fx.dr > 0 || s.m.it < 10)) return false;
         return true;
       });
       let total = ids.reduce((a, k) => a + ev[k].weight, 0);
@@ -485,7 +667,50 @@
         outcome = 'Go shopping! Prices in the build menu are 25% off.';
         kind = 'good';
         break;
+      case 'fire': {
+        if (s.m.suppression) {
+          const t = breakRandom(s, ['rack', 'dense', 'gpu']);
+          outcome = `VESDA sniffed out the smoke at the earliest stage and clean agent flooded the zone. Only ${t ? `one ${EQ[t.type].name}` : 'one power supply'} was lost, with no water damage and no evacuation.`;
+          kind = 'info';
+        } else {
+          let n = 0;
+          for (let k = 0; k < 4; k++) if (breakRandom(s, ['rack', 'dense', 'gpu', 'storage'])) n++;
+          s.fx.evac = 4;
+          s.money -= 10000;
+          s.ledger.penalties += 10000;
+          s.reputation = clamp(s.reputation - 8, 0, 100);
+          outcome = `Nobody noticed until the ceiling sprinklers went off. Water ruined ${n} unit(s), the building was evacuated for ~4 hours, and cleanup cost $10,000. (−8 reputation)`;
+          kind = 'bad';
+        }
+        break;
+      }
+      case 'intruder':
+        if (s.m.access) {
+          s.reputation = clamp(s.reputation + 1, 0, 100);
+          outcome = 'The mantrap would not open for them, and cameras tracked them to the exit. Security handled it in 90 seconds. (+1 reputation)';
+          kind = 'good';
+        } else {
+          s.money -= 8000;
+          s.ledger.penalties += 8000;
+          s.reputation = clamp(s.reputation - 6, 0, 100);
+          outcome = 'With no badge readers or cameras, they walked out with a box of hard drives. Breach notification and replacements cost $8,000. (−6 reputation)';
+          kind = 'bad';
+        }
+        break;
+      case 'chiller_trip': {
+        const t = breakRandom(s, ['chiller_wc', 'chiller_ac']);
+        const m = computeMetrics(s);
+        if (!m.plant.short) {
+          outcome = `The ${EQ[t.type].name} is down, but the remaining chillers have enough spare capacity (N+1). ${m.bms ? 'The BMS re-staged the plant automatically.' : ''} Nobody upstairs noticed.`;
+          kind = 'info';
+        } else {
+          outcome = `The ${EQ[t.type].name} is down and the rest of the plant cannot make enough chilled water. Your CRAHs are now running at ${Math.round(m.plant.crahScale * 100)}% until it is repaired. Watch rack temperatures!`;
+          kind = 'bad';
+        }
+        break;
+      }
       case 'journalist':
+      case 'demand_response':
       case 'crypto':
         outcome = '';
         kind = 'info';
@@ -510,6 +735,17 @@
           msg = 'Glowing review: "A spotless, well-run facility." (+6 reputation)';
         }
       } else msg = 'Security first. The journalist writes a short, neutral piece.';
+    } else if (id === 'demand_response') {
+      if (choice === 0) {
+        if (!s.m.bms) {
+          msg = 'The program requires automated controls. Without a BMS you cannot reset setpoints on the utility’s signal, so you missed out. Install a BMS Controller next time!';
+        } else {
+          const pay = Math.max(2000, Math.round(s.m.facility * 30));
+          s.money += pay;
+          s.fx.dr = 4;
+          msg = `Enrolled! The BMS raised the supply air setpoint by 3 °C for 4 hours. The utility paid $${pay.toLocaleString()}. Keep an eye on rack temperatures.`;
+        }
+      } else msg = 'You declined. The grid operator fires up a gas peaker plant instead.';
     } else if (id === 'crypto') {
       if (choice === 0) {
         s.money += 15000;
@@ -560,6 +796,10 @@
     first_client: (s) => s.stats.signed > 0,
     backup: (s, m) => m.counts.ups > 0 && m.counts.generator > 0,
     five_clients: (s) => s.contracts.length >= 5,
+    plant: (s, m) => m.counts.chiller_wc > 0 && m.counts.tower > 0 && m.plant.wcLoad > 1,
+    smart: (s, m) => s.powered && m.bms > 0 && s.controls.sat >= 24 && m.hot === 0 && m.it >= 20,
+    life_safety: (s, m) => m.suppression > 0 && m.access > 0,
+    kwton: (s, m) => s.powered && m.plant.tons >= 50 && m.plant.kwPerTon > 0 && m.plant.kwPerTon <= 0.6,
     pue15: (s, m) => s.powered && m.it >= 30 && m.pue < 1.5,
     rev100k: (s) => s.stats.revenue >= 100000,
     survive: (s) => !!s.flags.survived,
@@ -587,7 +827,7 @@
 
   function rank(s) {
     const n = Object.keys(s.goals).length;
-    return DCB.RANKS[Math.min(DCB.RANKS.length - 1, Math.floor(n / 2))];
+    return DCB.RANKS[Math.min(DCB.RANKS.length - 1, Math.floor((n * (DCB.RANKS.length - 1)) / DCB.GOALS.length))];
   }
 
   /* ---------- the hourly tick ---------- */
@@ -638,8 +878,10 @@
     s.onGenerator = onGen;
     const m = computeMetrics(s);
 
-    // 2. Energy bill
+    // 2. Energy (and water) bill
     s.stats.energy += m.facility;
+    s.stats.itEnergy += m.it;
+    s.stats.water += m.plant.water;
     if (powered) {
       if (onGen) {
         const fuel = m.facility * C.dieselPrice;
@@ -674,14 +916,42 @@
       let p = 0.0005 * failMult;
       if (t.temp > C.tempCritical) p += 0.05;
       else if (t.temp > C.tempThrottle) p += 0.004;
+      if (t.alarm > 0) {
+        // A BMS alarm is counting down: fix it before it turns into a failure.
+        if (--t.alarm === 0) {
+          breakTile(s, t);
+          log(s, `🔧 ${EQ[t.type].name} failed. The BMS warned you, but nobody got to it in time.`, 'bad');
+        }
+        continue;
+      }
       if (rand() < p) {
+        if (s.m.bms) {
+          t.alarm = 12;
+          t.alarmMsg = alarmText(t.type);
+          log(s, `🚨 BMS alarm: ${EQ[t.type].name}, ${t.alarmMsg}. A technician can service it before it fails.`, 'warn');
+          continue;
+        }
         breakTile(s, t);
         log(s, `🔧 ${EQ[t.type].name} failed${t.temp > C.tempThrottle ? ' from overheating' : ''}. ${s.techs ? 'A technician is on it.' : 'You have no technicians to fix it!'}${EQ[t.type].cooling ? ' Nearby racks will heat up unless other cooling covers them (that is why N+1 matters).' : ''}`, 'bad');
       }
     }
 
-    // 5. Repairs: each technician works on one broken item at a time
+    // 5. Maintenance: technicians handle BMS alarms first (cheap), then broken equipment
     let crew = s.techs;
+    for (const t of s.tiles) {
+      if (!crew) break;
+      if (!t || t.status !== 'ok' || !(t.alarm > 0)) continue;
+      crew--;
+      t.svc = (t.svc || 3) - 1;
+      if (t.svc <= 0) {
+        const cost = Math.round(EQ[t.type].cost * 0.03);
+        t.alarm = 0;
+        t.svc = 0;
+        s.money -= cost;
+        s.ledger.repairs += cost;
+        log(s, `🛠️ Preventive maintenance on ${EQ[t.type].name} cleared the alarm (parts: $${cost.toLocaleString()}). Failure avoided!`, 'good');
+      }
+    }
     for (const t of s.tiles) {
       if (!crew) break;
       if (!t || t.status !== 'broken') continue;
@@ -690,7 +960,7 @@
       if (t.repair <= 0) {
         const cost = Math.round(EQ[t.type].cost * 0.08);
         t.status = 'ok';
-        t.temp = Math.min(t.temp, C.roomTemp + 4);
+        t.temp = Math.min(t.temp, s.controls.sat + 4);
         s.money -= cost;
         s.ledger.repairs += cost;
         log(s, `✅ ${EQ[t.type].name} repaired (parts: $${cost.toLocaleString()}).`, 'info');
@@ -726,7 +996,22 @@
         log(s, `🚀 You handled the traffic spike flawlessly! Bonus: $${bonus.toLocaleString()} and +3 reputation.`, 'good');
       } else log(s, 'The traffic spike is over. Not enough headroom to serve it all this time.', 'info');
     }
-    for (const k of ['heatwave', 'ddos', 'fiber', 'priceSpike', 'sale', 'ransom']) if (fx[k] > 0) fx[k]--;
+    for (const k of ['heatwave', 'ddos', 'fiber', 'priceSpike', 'sale', 'ransom', 'evac', 'dr']) if (fx[k] > 0) fx[k]--;
+
+    // BMS trend log (last 48 hours)
+    const racks = s.tiles.filter((t) => t && t.status === 'ok' && EQ[t.type].compute);
+    s.trend.push({
+      pue: mm.pue,
+      inlet: racks.length ? racks.reduce((a, t) => a + t.temp, 0) / racks.length : mm.sat,
+      sat: mm.sat,
+      out: mm.outside,
+      cool: mm.cooling,
+      kwt: mm.plant.kwPerTon,
+    });
+    if (s.trend.length > 48) s.trend.shift();
+    if (mm.plant.short && s.hour % 6 === 0) {
+      log(s, `🧊 Chilled water shortage: the plant can make ${Math.round(mm.plant.cap)} kW but CRAHs want ${Math.round(mm.plant.wanted)} kW. Add chillers (or cooling towers).`, 'warn');
+    }
 
     // 8. Offers
     s.offers.forEach((o) => o.expires--);
@@ -819,6 +1104,7 @@
     acceptOffer, declineOffer, acceptCheck, triggerEvent, resolveChoice, answerQuiz, quizReward, nextQuiz,
     outsideTemp, priceOf, canBuild, gridUpgradeCost, floorUpgradeCost, rank, nines, timeLabel, genOffer,
     setRandom: (fn) => { rand = fn; },
+    migrate, setSat, effectiveSat, TON,
     FLOOR_STEPS, AIR_LIMIT,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

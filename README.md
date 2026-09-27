@@ -22,11 +22,15 @@ Your game autosaves in the browser (localStorage).
 | **Clients** with SLAs (99% to 99.99%) | What "nines" mean in minutes of downtime, and service credits |
 | **PUE** in the top bar | Total facility power ÷ IT power, and why efficiency cuts both bills and CO₂ |
 | **Technicians** repair broken gear | Failures happen, and hot equipment fails more. N+1 redundancy |
+| **Chiller plant**: air-cooled and water-cooled chillers, cooling towers, CRAHs on a chilled water loop | CRAC vs CRAH, tons and kW/ton, CHW supply/return, why water-cooled plants are efficient but use water (WUE), N+1 chillers |
+| **Controls (BMS)**: supply-air setpoint slider, plant graphic, sequences of operation, alarms, 48h trends | Setpoints vs energy (ASHRAE 18–27 °C), chiller staging, predictive maintenance alarms, demand response |
+| **VFDs, economizers, plant optimization, commissioning** | Fan affinity laws (power ∝ speed³), free cooling, why tuning and Cx pay back |
+| **Fire & security**: VESDA + clean agent suppression, access control & CCTV | Early smoke detection, suppression without water damage, physical security (required by banks, pharma and government clients) |
 | **Upgrades** (containment, virtualization, free-air cooling, RAID, diverse fiber, renewables…) | Real techniques data centers use |
-| **Random events**: outages, squirrels 🐿️, heat waves, DDoS, fiber cuts, ransomware, traffic spikes | Each event explains the real-world lesson |
-| **Board meeting pop quizzes** | 20 questions with explanations, and cash for right answers |
+| **Random events**: outages, squirrels 🐿️, heat waves, DDoS, fiber cuts, ransomware, traffic spikes, fires, intruders, chiller trips, utility demand response | Each event explains the real-world lesson |
+| **Board meeting pop quizzes** | 36 questions (including HVAC and controls) with explanations, and cash for right answers |
 
-There are 12 career goals, with ranks from *Junior Server Wrangler* to *Hyperscale Legend*. Reach **$1,000,000** to win. Go below −$50,000 and you're bankrupt.
+There are 16 career goals, with ranks from *Junior Server Wrangler* to *Hyperscale Legend*. Reach **$1,000,000** to win. Go below −$50,000 and you're bankrupt.
 
 **Controls:** click or drag to build · <kbd>Space</kbd> pause · <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> speed · <kbd>H</kbd> heat map · <kbd>Esc</kbd> cancel. Hover anything for an explanation.
 

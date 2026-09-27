@@ -120,3 +120,80 @@ test('long random simulation stays numerically sane', () => {
   assert.ok(s.m.uptime >= 0 && s.m.uptime <= 1);
   assert.ok(s.day > 90);
 });
+
+function richGame() {
+  const s = sim.newGame();
+  s.money = 1e7;
+  s.timers.event = s.timers.quiz = 1e9;
+  return s;
+}
+
+test('CRAHs only cool when a chiller plant makes chilled water', () => {
+  const s = richGame();
+  sim.place(s, 0, 0, 'dense');
+  sim.place(s, 1, 0, 'crah');
+  assert.ok(s.tiles[0].cool < 0.01, 'no plant, no cooling');
+  assert.ok(s.m.plant.short);
+  sim.place(s, 5, 4, 'chiller_wc');
+  assert.ok(s.tiles[0].cool < 0.01, 'water-cooled chiller needs a tower');
+  sim.place(s, 6, 4, 'tower');
+  assert.ok(s.tiles[0].cool > 0.99);
+  assert.ok(!s.m.plant.short);
+  assert.ok(s.m.plant.kwPerTon > 0);
+});
+
+test('VFDs, BMS staging and a higher setpoint all cut plant energy', () => {
+  const s = richGame();
+  for (let x = 0; x < 6; x++) { sim.place(s, x, 0, 'dense'); sim.place(s, x, 2, 'dense'); }
+  for (let x = 0; x < 6; x += 2) sim.place(s, x, 1, 'crah');
+  sim.place(s, 0, 4, 'chiller_wc'); sim.place(s, 1, 4, 'tower'); sim.place(s, 2, 4, 'chiller_ac');
+  const base = s.m.cooling;
+  s.upgrades.vfd = true;
+  const withVfd = sim.computeMetrics(s).cooling;
+  assert.ok(withVfd < base);
+  assert.strictEqual(sim.setSat(s, 25).ok, false, 'setpoint needs a BMS');
+  sim.place(s, 3, 4, 'bms');
+  const withBms = s.m.cooling;
+  assert.ok(withBms < withVfd, 'BMS stages the efficient chiller first');
+  assert.ok(sim.setSat(s, 25).ok);
+  assert.ok(s.m.cooling < withBms);
+  assert.strictEqual(s.m.sat, 25);
+});
+
+test('BMS alarms give technicians time to prevent failures', () => {
+  const s = richGame();
+  sim.place(s, 0, 0, 'rack'); sim.place(s, 1, 0, 'crac'); sim.place(s, 2, 0, 'bms');
+  sim.setRandom(() => 0); // every failure roll hits
+  sim.tick(s);
+  sim.setRandom(() => 0.99);
+  assert.ok(s.tiles.filter(Boolean).every((t) => t.status === 'ok'), 'alarm instead of instant failure');
+  assert.ok(s.tiles[0].alarm > 0);
+  for (let i = 0; i < 40; i++) sim.tick(s);
+  assert.ok(s.log.some((l) => l.msg.includes('Preventive maintenance')));
+});
+
+test('fire suppression limits fire damage; clients can require it', () => {
+  sim.setRandom(seeded(9));
+  const a = richGame();
+  const b = richGame();
+  for (const s of [a, b]) for (let x = 0; x < 6; x++) sim.place(s, x, 0, 'rack');
+  sim.place(b, 0, 1, 'suppression');
+  sim.triggerEvent(a, 'fire');
+  sim.triggerEvent(b, 'fire');
+  const broken = (s) => s.tiles.filter((t) => t && t.status === 'broken').length;
+  assert.ok(broken(a) > broken(b));
+  assert.ok(a.fx.evac > 0 && b.fx.evac === 0);
+  sim.computeMetrics(b);
+  const offer = { needs: ['access', 'suppression'], compute: 1, storage: 0, bw: 0 };
+  assert.match(sim.acceptCheck(b, offer), /Access Control/);
+});
+
+test('old saves are migrated', () => {
+  const s = sim.newGame();
+  delete s.controls; delete s.trend; delete s.fx.evac; delete s.fx.dr;
+  s.quizOrder = s.quizOrder.filter((i) => i < 20);
+  sim.migrate(JSON.parse(JSON.stringify(s)));
+  const m = sim.migrate(s);
+  assert.strictEqual(m.controls.sat, CONFIG.roomTemp);
+  assert.strictEqual(new Set(m.quizOrder).size, globalThis.DCB.QUIZ.length);
+});

@@ -63,6 +63,26 @@
       desc: 'Coolant Distribution Unit. 120 kW within 1 tile, super efficient (COP 8).',
       lesson: 'Water carries about 3,500× more heat than the same volume of air. Liquid cooling is how AI data centers keep up.',
     },
+    crah: {
+      name: 'CRAH (Chilled Water)', cat: 'cooling', cost: 11000, power: 0, heat: 0, cooling: 50, radius: 2, chw: true, fan: 2.5,
+      desc: 'Computer Room Air Handler. Removes 50 kW within 2 tiles using chilled water from your chiller plant. Only its fans use power here; the chillers do the heavy lifting.',
+      lesson: 'A CRAH has no compressor inside: it is a coil plus fans. Chilled water from a central plant absorbs the heat. Large sites use CRAHs because big central chillers are far more efficient than many small CRAC compressors.',
+    },
+    chiller_ac: {
+      name: 'Air-Cooled Chiller', cat: 'plant', cost: 45000, power: 0, heat: 0, chwCap: 250, cop: 3.2,
+      desc: 'Makes chilled water for CRAHs: 250 kW (71 tons). Rejects heat straight to outdoor air, so no water is used. COP 3.2, and it struggles in heat waves.',
+      lesson: 'Chillers run a refrigeration cycle (compressor, condenser, expansion valve, evaporator) to make chilled water, typically around 7–15 °C. Air-cooled chillers are simpler and use no water, but are less efficient on hot days.',
+    },
+    chiller_wc: {
+      name: 'Water-Cooled Chiller', cat: 'plant', cost: 70000, power: 0, heat: 0, chwCap: 400, cop: 6, needsTower: true,
+      desc: 'High-efficiency centrifugal chiller: 400 kW (114 tons), COP 6. Needs a Cooling Tower to reject its heat.',
+      lesson: 'Water-cooled centrifugal chillers are the most efficient way to make chilled water at scale, often 0.5–0.6 kW per ton. Their condenser water carries heat to a cooling tower.',
+    },
+    tower: {
+      name: 'Cooling Tower', cat: 'plant', cost: 25000, power: 0, heat: 0, reject: 600, fan: 4,
+      desc: 'Rejects up to 600 kW of heat from water-cooled chillers by evaporation. Uses water, so watch your WUE.',
+      lesson: 'Cooling towers spray warm condenser water over fill media while a fan pulls air through. A little water evaporates, and evaporation carries away a lot of heat. That is why water-cooled plants save energy but consume water.',
+    },
     switch: {
       name: 'Network Switch', cat: 'network', cost: 6000, power: 1, bw: 40,
       desc: 'Top-of-rack switching and uplinks. +40 Gbps bandwidth.',
@@ -72,6 +92,21 @@
       name: 'Firewall', cat: 'network', cost: 14000, power: 1, security: 1,
       desc: 'Filters malicious traffic. Blocks ransomware and absorbs most DDoS traffic. Banks require one.',
       lesson: 'Firewalls inspect traffic and block anything that does not match the rules. Defense in depth means layering several protections.',
+    },
+    bms: {
+      name: 'BMS Controller', cat: 'controls', cost: 12000, power: 0.3, heat: 0, bmsCtl: true,
+      desc: 'Building Management System. Unlocks the Controls screen: setpoints, plant sequences, alarms and trends. Gives early-warning alarms before equipment fails.',
+      lesson: 'A BMS (also called a BAS) connects thousands of sensors, controllers and actuators, usually over BACnet. Operators watch graphics, alarms and trends, and control loops keep temperatures at setpoint 24/7.',
+    },
+    suppression: {
+      name: 'Fire Detection & Suppression', cat: 'controls', cost: 18000, power: 0.3, heat: 0, fireSafe: true,
+      desc: 'VESDA aspirating smoke detection plus clean-agent gas suppression. Catches fires early without drowning the servers in water.',
+      lesson: 'VESDA (Very Early Smoke Detection Apparatus) samples air through pipes and can detect smoke before you can see or smell it. Clean agents put out fires without leaving water or residue on electronics.',
+    },
+    access: {
+      name: 'Access Control & CCTV', cat: 'controls', cost: 8000, power: 0.2, heat: 0, accessCtl: true,
+      desc: 'Badge readers, a mantrap and cameras. Stops intruders. Banks and governments require it.',
+      lesson: 'Data centers layer physical security: fences, guards, badge plus PIN or biometrics, mantraps that let one person through at a time, and video surveillance tied to the access control system.',
     },
     ups: {
       name: 'UPS', cat: 'power', cost: 15000, power: 1, heat: 1, ups: 150,
@@ -89,9 +124,11 @@
 
   DCB.CATEGORIES = [
     { id: 'compute', name: 'Compute & Storage' },
-    { id: 'cooling', name: 'Cooling' },
+    { id: 'cooling', name: 'Room Cooling (HVAC)' },
+    { id: 'plant', name: 'Chiller Plant (HVAC)' },
     { id: 'power', name: 'Backup Power' },
     { id: 'network', name: 'Network & Security' },
+    { id: 'controls', name: 'Controls, Fire & Security' },
   ];
 
   DCB.UPGRADES = {
@@ -130,6 +167,26 @@
       desc: 'Two carriers entering from different sides of the building. Fiber cuts no longer take you offline.',
       lesson: 'Backhoes cut buried fiber surprisingly often. Having two carriers whose cables arrive by different routes is a classic redundancy practice.',
     },
+    vfd: {
+      name: 'Variable Frequency Drives', cost: 20000, icon: '🎚️',
+      desc: 'Fans, pumps and tower fans slow down to match the load instead of running flat out.',
+      lesson: 'Fan affinity laws: power rises with the cube of speed. A fan at 50% speed uses only about 12.5% of full power. VFDs are among the best-paying energy upgrades in any building.',
+    },
+    wse: {
+      name: 'Waterside Economizer', cost: 35000, icon: '🔄',
+      desc: 'A plate heat exchanger lets cold cooling-tower water make chilled water directly, so chillers can rest on cool days. Needs a Cooling Tower.',
+      lesson: 'When outdoor wet-bulb temperature is low, the tower alone can make water cold enough. The BMS switches the plant into "free cooling" mode and turns chillers off. A higher chilled water setpoint means more free-cooling hours.',
+    },
+    optimizer: {
+      name: 'Central Plant Optimization', cost: 30000, icon: '🧠',
+      desc: 'Software on your BMS continuously tunes chiller, pump and tower setpoints: 12% less plant energy. Needs an online BMS.',
+      lesson: 'Plant optimization software models the whole chilled water plant and picks the combination of chillers, pump speeds and tower setpoints that uses the least total power, minute by minute.',
+    },
+    commissioning: {
+      name: 'Retro-Commissioning', cost: 15000, icon: '📋',
+      desc: 'Engineers test every sequence and fix what drifted: 8% less cooling energy.',
+      lesson: 'Commissioning (Cx) verifies that HVAC and controls work as designed. Over time, sensors drift and overrides get left on. Retro-commissioning typically saves 5–15% of energy.',
+    },
     renewable: {
       name: 'Renewable Energy PPA', cost: 45000, icon: '☀️',
       desc: 'Buy wind and solar power at a fixed $0.13/kWh. Price spikes can no longer hurt you, and carbon drops 85%. Earns reputation.',
@@ -148,9 +205,10 @@
     { id: 'stream', name: 'Video Streaming Service', icon: '🎬', compute: 25, storage: 400, bw: 60, sla: 99.9, pay: 4600, days: [30, 60], minRep: 45 },
     { id: 'hospital', name: 'Hospital Health Records', icon: '🏥', compute: 12, storage: 150, bw: 4, sla: 99.99, pay: 3600, days: [30, 60], minRep: 50, needs: 'firewall' },
     { id: 'social', name: 'Social Media App', icon: '📱', compute: 60, storage: 250, bw: 50, sla: 99.9, pay: 8200, days: [30, 60], minRep: 55 },
-    { id: 'bank', name: 'National Bank', icon: '🏦', compute: 40, storage: 80, bw: 8, sla: 99.99, pay: 8000, days: [40, 80], minRep: 60, needs: 'firewall' },
+    { id: 'bank', name: 'National Bank', icon: '🏦', compute: 40, storage: 80, bw: 8, sla: 99.99, pay: 8000, days: [40, 80], minRep: 60, needs: ['firewall', 'access'] },
+    { id: 'pharma', name: 'Pharma Research Co.', icon: '💊', compute: 45, storage: 250, bw: 6, sla: 99.9, pay: 7000, days: [40, 70], minRep: 55, needs: ['access', 'suppression'] },
     { id: 'ai', name: 'Frontier AI Lab', icon: '🤖', compute: 260, storage: 300, bw: 20, sla: 99.9, pay: 36000, days: [30, 60], minRep: 65 },
-    { id: 'gov', name: 'Government Agency', icon: '🏛️', compute: 50, storage: 200, bw: 10, sla: 99.99, pay: 11000, days: [60, 90], minRep: 75, needs: 'firewall' },
+    { id: 'gov', name: 'Government Agency', icon: '🏛️', compute: 50, storage: 200, bw: 10, sla: 99.99, pay: 11000, days: [60, 90], minRep: 75, needs: ['firewall', 'access', 'suppression'] },
   ];
 
   DCB.EVENTS = {
@@ -215,6 +273,27 @@
       lesson: 'Real data centers have strict physical security: badges, mantraps, biometric scanners and cameras. Visitors are always escorted.',
       choices: ['Give the tour', 'Politely decline'],
     },
+    fire: {
+      title: 'Smoke Detected!', icon: '🔥', weight: 4,
+      text: 'A power supply inside one of your racks overheated and started to smolder.',
+      lesson: 'Data center fire protection has two jobs: detect very early (aspirating smoke detection) and suppress without destroying the equipment (clean agents or pre-action sprinklers that only fill with water when needed).',
+    },
+    intruder: {
+      title: 'Intruder Alert', icon: '🕵️', weight: 3,
+      text: 'Someone tailgated a delivery driver through the loading dock and is heading for your server hall.',
+      lesson: 'Physical security is part of cybersecurity: someone with hands on a server can bypass most digital protections. Integrated access control and video let security respond in seconds.',
+    },
+    chiller_trip: {
+      title: 'Chiller Tripped', icon: '🧊', weight: 5,
+      text: 'A chiller shut itself down on a high-pressure safety fault.',
+      lesson: 'Critical plants are designed N+1: enough spare chiller capacity that any one unit can fail or be serviced while the rest carry the load. A BMS restarts and re-stages chillers automatically.',
+    },
+    demand_response: {
+      title: 'Utility Demand Response', icon: '🏭', weight: 4,
+      text: 'The grid is stressed this afternoon. The utility will pay you to cut load for 4 hours by raising cooling setpoints 3 °C.',
+      lesson: 'Demand response programs pay buildings to reduce power during grid peaks. A BMS can do it automatically: raise setpoints, pre-cool, or shift load, all within safe limits.',
+      choices: ['Enroll: shed load via BMS', 'Decline'],
+    },
     crypto: {
       title: 'Crypto Miner Offer', icon: '⛏️', weight: 3,
       text: 'A crypto-mining company offers $15,000 cash right now to use your spare power for a week. It will cost reputation with environmentally conscious clients.',
@@ -224,6 +303,38 @@
   };
 
   DCB.QUIZ = [
+    { q: 'One "ton" of refrigeration equals how much cooling?', a: ['1,000 kg of ice per hour', 'About 3.5 kW (12,000 BTU/h)', '1 kW', '100 kW'], c: 1,
+      e: 'One ton is 12,000 BTU/h ≈ 3.517 kW: the heat needed to melt one short ton of ice in 24 hours. Chillers in the US are sized in tons.' },
+    { q: 'For a chiller plant, is a LOWER or HIGHER kW/ton better?', a: ['Lower', 'Higher', 'It does not matter', 'Exactly 1.0 is ideal'], c: 0,
+      e: 'kW/ton = electricity used per ton of cooling delivered. A great water-cooled plant runs around 0.5–0.6 kW/ton; older plants can exceed 1.0.' },
+    { q: 'What is the key difference between a CRAC and a CRAH?', a: ['CRAHs are bigger', 'A CRAH uses chilled water from a plant; a CRAC has its own compressor', 'CRACs use water', 'There is no difference'], c: 1,
+      e: 'CRAC = Computer Room Air Conditioner (self-contained refrigerant/compressor). CRAH = Computer Room Air Handler (coil + fans fed by central chilled water).' },
+    { q: 'By the fan affinity laws, a fan slowed to 50% speed uses roughly what share of full power?', a: ['50%', '25%', '12.5%', '90%'], c: 2,
+      e: 'Power scales with the cube of speed: 0.5³ = 0.125. That is why Variable Frequency Drives save so much energy.' },
+    { q: 'How does a cooling tower mainly reject heat?', a: ['Radiation into space', 'Evaporating a small amount of water', 'Burning fuel', 'Magnetism'], c: 1,
+      e: 'Evaporating water absorbs a lot of heat. Towers are efficient, but they consume water, which is measured as WUE (Water Usage Effectiveness).' },
+    { q: 'What does a waterside economizer do?', a: ['Saves water by turning off towers', 'Uses cold tower water to make chilled water so chillers can turn off', 'Heats the building in winter', 'Filters the water'], c: 1,
+      e: 'When it is cold outside, cooling-tower water can cool the chilled water loop through a heat exchanger. This is "free cooling" with chillers off.' },
+    { q: 'What is BACnet?', a: ['A backup network cable', 'An open communication protocol for building automation', 'A type of chiller', 'A fire code'], c: 1,
+      e: 'BACnet (Building Automation and Control networks, ASHRAE Standard 135) lets controllers, sensors and equipment from different vendors talk to each other.' },
+    { q: 'In a PID control loop, what does the controller try to minimize?', a: ['The error between setpoint and measured value', 'The number of sensors', 'Network traffic', 'Maintenance cost'], c: 0,
+      e: 'Proportional-Integral-Derivative control constantly adjusts an output (valve, fan speed) to drive the error between setpoint and measurement to zero.' },
+    { q: 'What usually happens to cooling energy if you raise the supply air setpoint from 20 °C to 24 °C (still within ASHRAE limits)?', a: ['It goes up', 'It goes down', 'No change', 'The chillers explode'], c: 1,
+      e: 'Warmer setpoints let chillers run more efficiently and allow more economizer hours. Many data centers now run 24–27 °C supply air.' },
+    { q: 'Why do data centers prefer clean-agent fire suppression over ordinary sprinklers?', a: ['It is cheaper', 'It puts out fires without water damage to electronics', 'It is louder', 'Sprinklers are illegal'], c: 1,
+      e: 'Clean agents (inert gases or engineered chemicals) extinguish fires and leave no residue, so the rest of the servers survive.' },
+    { q: 'What is a "deadband" in HVAC controls?', a: ['A broken sensor', 'A range around the setpoint where no action is taken, to avoid short-cycling', 'A radio frequency', 'A type of duct'], c: 1,
+      e: 'Deadbands stop equipment from rapidly switching on and off (short-cycling), which wastes energy and wears out compressors.' },
+    { q: 'What is a "sequence of operations"?', a: ['A written description of exactly how the control system should run the equipment', 'The order servers boot in', 'A maintenance schedule', 'A tax form'], c: 0,
+      e: 'The sequence of operations tells controls programmers and commissioning agents how every mode should behave: startup, staging, economizer, alarms and failure responses.' },
+    { q: 'What does commissioning (Cx) verify?', a: ['That the building was paid for', 'That systems perform as designed', 'That staff are trained in first aid', 'That the paint is dry'], c: 1,
+      e: 'Commissioning tests equipment and controls against the design intent before handover and periodically afterwards (retro-commissioning).' },
+    { q: 'With several chillers of different efficiency, which should the BMS load first?', a: ['The oldest', 'The most efficient', 'The noisiest', 'All equally, always'], c: 1,
+      e: 'Chiller staging sequences run the most efficient machines first and add others only as load rises, lowering plant kW/ton.' },
+    { q: 'Why does an air-cooled chiller use more power on a hot afternoon?', a: ['The water gets thicker', 'It must reject heat into hotter air, so the compressor works against a higher pressure', 'Servers run faster when hot', 'It does not'], c: 1,
+      e: 'Higher outdoor temperature raises the condensing temperature and the compressor "lift". Water-cooled chillers suffer less because tower water stays cooler than the air.' },
+    { q: 'What does WUE measure?', a: ['Wi-Fi usage', 'Liters of water used per kWh of IT energy', 'Wind speed', 'Work units per employee'], c: 1,
+      e: 'Water Usage Effectiveness (L/kWh) is the water counterpart to PUE. Evaporative cooling improves PUE but raises WUE: a classic trade-off.' },
     { q: 'What does PUE stand for?', a: ['Power Usage Effectiveness', 'Peak Utility Energy', 'Processor Utilization Efficiency', 'Power Unit Exchange'], c: 0,
       e: 'PUE = total facility power ÷ IT equipment power. A perfect score is 1.0; the industry average is about 1.5.' },
     { q: 'A data center uses 150 kW total, and its servers use 100 kW. What is its PUE?', a: ['0.67', '1.5', '2.5', '50'], c: 1,
@@ -290,6 +401,25 @@
     ['Liquid Cooling', 'Coolant piped to cold plates on chips, or servers immersed in fluid. Needed for dense AI racks.'],
     ['DCIM', 'Data Center Infrastructure Management: monitoring software for power, cooling and assets.'],
     ['Colocation', 'Renting space, power and cooling in someone else’s data center for your servers.'],
+    ['Chiller', 'A machine that uses a refrigeration cycle to make chilled water for air handlers and CDUs. Air-cooled or water-cooled.'],
+    ['Ton of Refrigeration', '12,000 BTU/h ≈ 3.517 kW of cooling. The standard unit for sizing chillers.'],
+    ['kW/ton', 'Plant electricity per ton of cooling. Lower is better: ~0.5–0.6 excellent, >1.0 poor.'],
+    ['CHW Supply / Return', 'Chilled water leaves the plant cold (supply) and comes back warmer (return). The difference is the ΔT.'],
+    ['Cooling Tower', 'Rejects condenser heat by evaporating water. Efficient, but uses water.'],
+    ['Economizer', 'Free cooling. Airside brings in cool outdoor air; waterside uses cold tower water via a heat exchanger.'],
+    ['VFD', 'Variable Frequency Drive. Lets motors (fans, pumps) run at partial speed. Power ∝ speed³.'],
+    ['BMS / BAS', 'Building Management (Automation) System: the controllers, sensors, graphics, alarms and trends that run the building.'],
+    ['BACnet', 'Open protocol (ASHRAE 135) that lets building automation devices from different vendors communicate.'],
+    ['Setpoint', 'The target value a control loop maintains, like a 22 °C supply air temperature.'],
+    ['PID Loop', 'Proportional-Integral-Derivative control: adjusts an output to hold a measured value at setpoint.'],
+    ['Deadband', 'A range around the setpoint where the controller takes no action, to avoid short-cycling.'],
+    ['Sequence of Operations', 'The written logic describing how the controls run each system in every mode.'],
+    ['Commissioning (Cx)', 'The process of verifying that building systems perform as designed.'],
+    ['Demand Response', 'Getting paid by the utility to cut load during grid peaks, usually automated by the BMS.'],
+    ['WUE', 'Water Usage Effectiveness = liters of water ÷ kWh of IT energy.'],
+    ['VESDA', 'Very Early Smoke Detection Apparatus: pipes that sample air for tiny smoke particles.'],
+    ['Clean Agent', 'Gas fire suppression that leaves no residue or water on electronics.'],
+    ['Access Control', 'Badges, PINs, biometrics and mantraps that control who can enter which space.'],
     ['Carbon Footprint', 'CO₂ emitted to make your electricity. Cleaner energy and a lower PUE both shrink it.'],
   ];
 
@@ -306,6 +436,10 @@
     { id: 'four_nines', title: 'Four nines', desc: 'Complete a 99.99% SLA contract without breaching it.', reward: 30000 },
     { id: 'pue125', title: 'Hyperscale efficiency', desc: 'Reach PUE below 1.25 with at least 100 kW IT load.', reward: 40000 },
     { id: 'ai_host', title: 'AI factory', desc: 'Host a Frontier AI Lab.', reward: 50000 },
+    { id: 'plant', title: 'Plant operator', desc: 'Run a chilled water plant: a Water-Cooled Chiller, a Cooling Tower and a working CRAH carrying load.', reward: 20000 },
+    { id: 'smart', title: 'Smart building', desc: 'With an online BMS, raise the supply air setpoint to 24 °C or more with no overheating equipment and at least 20 kW IT.', reward: 20000 },
+    { id: 'life_safety', title: 'Life safety', desc: 'Install Fire Detection & Suppression and Access Control.', reward: 10000 },
+    { id: 'kwton', title: 'Plant wizard', desc: 'Run the chiller plant at 0.60 kW/ton or better while carrying at least 50 tons.', reward: 40000 },
     { id: 'millionaire', title: 'Hyperscaler', desc: 'Reach $1,000,000 in cash. You win!', reward: 0 },
   ];
 
@@ -320,6 +454,13 @@
   ];
 
   DCB.FACTS = [
+    'Warren Johnson patented the electric room thermostat in 1883 and founded what became Johnson Controls in 1885.',
+    'A single large centrifugal chiller can deliver over 2,000 tons of cooling, enough for a whole campus.',
+    'The word "ton" in cooling comes from the ice trade: the heat needed to melt one ton of ice in a day.',
+    'Many modern data centers run warmer than your office. Supply air of 24–27 °C is common.',
+    'A big data center BMS can monitor over 100,000 points: temperatures, pressures, valve positions, alarms and more.',
+    'Cooling towers can evaporate millions of liters of water a year, so water-free cooling designs are growing fast.',
+    'VFDs on fans and pumps are one of the fastest paybacks in building energy retrofits.',
     'Data centers use roughly 1–2% of all electricity in the world.',
     'Google reports a fleet-wide PUE of about 1.10.',
     'Some data centers are cooled with seawater, and Microsoft once tested one on the sea floor!',
