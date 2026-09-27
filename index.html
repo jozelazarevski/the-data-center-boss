@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Data Center Boss</title>
+  <meta name="description" content="Run your own data center: build racks, keep them cool, keep the power on, and learn how the cloud really works." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-icon">🖥️</span>
+      <div>
+        <div class="brand-name">The Data Center Boss</div>
+        <div class="brand-rank" id="rank"></div>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="controls">
+      <div class="speed" role="group" aria-label="Game speed">
+        <button data-speed="0" title="Pause (Space)">⏸</button>
+        <button data-speed="1" title="Normal speed (1)">▶</button>
+        <button data-speed="2" title="Fast (2)">⏩</button>
+        <button data-speed="3" title="Very fast (3)">⏭</button>
+      </div>
+      <button id="btn-sound" title="Toggle sound">🔊</button>
+      <button id="btn-help" title="How to play">❓</button>
+      <button id="btn-new" title="New game">↺</button>
+    </div>
+  </header>
+
+  <div id="alerts"></div>
+
+  <main>
+    <aside id="build" aria-label="Build menu">
+      <h2>Build</h2>
+      <div id="palette"></div>
+      <div class="tools">
+        <button id="tool-sell" class="tool">🪓 Sell / Demolish</button>
+        <label class="toggle"><input type="checkbox" id="toggle-heat" /> Heat map</label>
+      </div>
+      <div id="facility"></div>
+    </aside>
+
+    <section id="center">
+      <div id="floor-wrap">
+        <div id="floor"></div>
+      </div>
+      <div id="hint"></div>
+      <div id="tile-info"></div>
+    </section>
+
+    <aside id="side">
+      <nav class="tabs" id="tabs">
+        <button data-tab="clients" class="active">Clients</button>
+        <button data-tab="upgrades">Upgrades</button>
+        <button data-tab="team">Finance</button>
+        <button data-tab="goals">Goals</button>
+        <button data-tab="handbook">Handbook</button>
+      </nav>
+      <div id="tab-body"></div>
+    </aside>
+  </main>
+
+  <footer id="log-wrap">
+    <div class="log-title">Operations log</div>
+    <ul id="log"></ul>
+  </footer>
+
+  <div id="modal-bg" hidden>
+    <div id="modal" role="dialog" aria-modal="true"></div>
+  </div>
+  <div id="tooltip" hidden></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
