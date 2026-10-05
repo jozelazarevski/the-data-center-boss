@@ -1426,7 +1426,7 @@ function finishDrill() {
     <div class="eyebrow">Drill · ${d.name}</div>
     <h2>${result.ok ? "Passed" : "Failed. Now you know what to fix."}</h2>
     <div class="result ${result.ok ? "pass" : "fail"}"><div class="ico-tile">${result.ok ? ICON.checkL : ICON.alert}</div><div><b>${esc(d.desc)}</b><p>${esc(result.text)}</p></div></div>
-    ${fix ? `<p class="lead">Fix: add a <b>${ITEMS[fix].name}</b>, then run the drill again.</p>` : ""}
+    ${fix ? `<p class="lead">Fix: add ${/^[AEIOU]/i.test(ITEMS[fix].name) ? "an" : "a"} <b>${ITEMS[fix].name}</b>, then run the drill again.</p>` : ""}
     <div class="foot">${fix ? `<button class="btn ghost lg" data-act="showItem" data-k="${fix}">Show ${ITEMS[fix].name}</button>` : ""}<button class="btn primary lg" data-act="closeModal">Continue</button></div>`);
   renderAll();
 }
@@ -1774,7 +1774,8 @@ function nextHint() {
     const why = a.why ? esc(a.why) + " " : "";
     if (a.kind === "drill") return { ...a, text: `Everything's in place. Run the <b>${DRILLS[a.key].name.toLowerCase()}</b> drill to prove your design works.`, label: "Run drill" };
     if (a.kind === "proc") return { ...a, text: `${why}Next: <b>${PROCS[a.key].name}</b>, toward “${esc(o.label)}”.`, label: PROCS[a.key].modal ? "Open" : "Read and start" };
-    return { ...a, text: `${why}Build a <b>${ITEMS[a.key].name}</b> to work toward “${esc(o.label)}”.`, label: `Show ${ITEMS[a.key].name}` };
+    const nm = ITEMS[a.key].name, art = /^[AEIOU]/i.test(nm) ? "an" : "a";
+    return { ...a, text: `${why}Build ${art} <b>${nm}</b> to work toward “${esc(o.label)}”.`, label: `Show ${nm}` };
   }
   if (waiting) return { text: `Waiting for <b>${PROCS[waiting].name}</b> to finish. Real projects run several of these in parallel.` };
   return null;
