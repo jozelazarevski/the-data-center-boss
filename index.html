@@ -1498,13 +1498,15 @@ const QUIZ = [
 ];
 function showQuiz() {
   const Q = QUIZ[S.level], ans = S.quizAns || (S.quizAns = []);
+  // shuffle answer order once per quiz so the right answer isn't always in the same spot
+  const order = S.quizOrder || (S.quizOrder = Q.qs.map(q => q.a.map((_, j) => j).sort(() => Math.random() - 0.5)));
   const answered = ans.filter(x => x != null).length, right = Q.qs.filter((q, i) => ans[i] === q.c).length;
   const last = S.level === LEVELS.length - 1;
   showModal(`
     <div class="eyebrow">Knowledge check · ${LEVELS[S.level].name}</div>
     <h2>${answered < 3 ? "Three quick questions" : `${right} of 3 right`}</h2>
     <p class="lead">${answered < 3 ? `Each right answer adds ${money(Q.bonus)} to your budget.` : right ? `You earned ${money(right * Q.bonus)}.` : "No bonus this time, but now you know."}</p>
-    ${Q.qs.map((q, i) => `<div class="quiz"><b>${i + 1}. ${esc(q.q)}</b><div class="qopts">${q.a.map((a, j) => {
+    ${Q.qs.map((q, i) => `<div class="quiz"><b>${i + 1}. ${esc(q.q)}</b><div class="qopts">${order[i].map(j => [q.a[j], j]).map(([a, j]) => {
       const st = ans[i] == null ? "" : j === q.c ? "right" : j === ans[i] ? "wrong" : "dim";
       return `<button class="qopt ${st}" data-act="qa" data-q="${i}" data-i="${j}" ${ans[i] != null ? "disabled" : ""}>${esc(a)}</button>`;
     }).join("")}</div>${ans[i] != null ? `<p class="qwhy ${ans[i] === q.c ? "right" : "wrong"}">${ans[i] === q.c ? "Right. " : "Not quite. "}${esc(q.why)}</p>` : ""}</div>`).join("")}
@@ -1524,7 +1526,7 @@ function finishQuiz() {
     S.quiz[S.level] = `${right}/3`;
     if (right) { S.budget += right * Q.bonus; toast(`Knowledge check: +${money(right * Q.bonus)}.`, "good"); }
   }
-  S.quizAns = null;
+  S.quizAns = null; S.quizOrder = null;
   closeModal();
   if (S.level === LEVELS.length - 1) { S.completed = true; flyTo(2, -2, 0.85); } else startLevel(S.level + 1);
   save();
@@ -1786,7 +1788,7 @@ document.addEventListener("click", e => {
   else if (a === "showItem") { closeModal(); selectItem(k); }
   else if (a === "nextLevel") { closeModal(); startLevel(S.level + 1); }
   else if (a === "sandbox") { closeModal(); S.completed = true; flyTo(2, -2, 0.85); save(); }
-  else if (a === "quiz") { S.quizAns = []; showQuiz(); }
+  else if (a === "quiz") { S.quizAns = []; S.quizOrder = null; showQuiz(); }
   else if (a === "qa") answerQuiz(+el.dataset.q, +el.dataset.i);
   else if (a === "quizDone") finishQuiz();
   else if (a === "resume") closeModal();
