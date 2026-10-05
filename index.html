@@ -1,0 +1,1156 @@
+<title>The Data Center Boss</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: full-bleed isometric campus, glass ops cards floating on its edges (stacked below the map on phones).
+   Deliberately a single light, daylight look like a scale model on a desk. */
+:root {
+  color-scheme: light;
+  --bg: #e9edf7;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel-solid: #ffffff;
+  --ink: #121a33;
+  --muted: #69738d;
+  --faint: #a3abc0;
+  --line: #e4e8f2;
+  --wash: #f3f5fb;
+  --accent: #2f5bea;
+  --accent-ink: #1f45c7;
+  --accent-wash: #e8eeff;
+  --good: #16935f;
+  --good-wash: #e2f6ec;
+  --warn: #b7780a;
+  --warn-wash: #fdf1d6;
+  --bad: #d23f45;
+  --bad-wash: #fde7e7;
+  --shadow: 0 1px 2px rgba(18, 26, 51, 0.06), 0 8px 24px rgba(30, 50, 110, 0.10);
+  --font-ui: "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 14px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 500 13px/1.4 var(--font-ui); font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+svg { display: block; flex: none; }
+.mono { font-family: var(--font-data); font-weight: 500; letter-spacing: -0.01em; }
+
+.app { height: 100%; display: flex; flex-direction: column; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 14px; padding: 10px 16px;
+  background: var(--panel-solid); border-bottom: 1px solid var(--line); position: relative; z-index: 5;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: -0.02em; white-space: nowrap; }
+.search {
+  flex: 1; max-width: 400px; min-width: 0; display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; background: var(--panel-solid); color: var(--muted);
+}
+.search input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font: inherit; color: var(--ink); }
+.search kbd { font: 600 11px var(--font-data); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; color: var(--muted); }
+.spacer { flex: 1; }
+.site-chip { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 5px 12px 5px 6px; white-space: nowrap; }
+.site-code { background: var(--accent); color: #fff; font: 600 11px var(--font-data); border-radius: 6px; padding: 5px 6px; }
+.site-chip b { display: block; font-size: 12.5px; }
+.site-chip small, .me small { display: block; color: var(--muted); font-size: 11px; }
+.live { display: flex; align-items: center; gap: 6px; background: var(--good-wash); color: var(--good); border-radius: 999px; padding: 5px 11px; font-weight: 700; font-size: 12px; white-space: nowrap; }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(22,147,95,.18); }
+.live span { color: var(--ink); font-family: var(--font-data); }
+.bell { position: relative; border: 0; background: transparent; padding: 6px; border-radius: 8px; color: var(--ink); }
+.bell:hover { background: var(--wash); }
+.badge { position: absolute; top: 1px; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--bad); color: #fff; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center; }
+.me { display: flex; align-items: center; gap: 9px; padding-left: 12px; border-left: 1px solid var(--line); white-space: nowrap; }
+.me b { display: block; font-size: 12.5px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #6f8cff); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 11px; }
+
+/* ---------- stage ---------- */
+.stage { position: relative; flex: 1; min-height: 0; }
+.canvas-wrap { position: absolute; inset: 0; overflow: hidden; }
+#scene { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#scene.pointing { cursor: pointer; }
+
+.panel { background: var(--panel); border: 1px solid rgba(255,255,255,.7); border-radius: var(--r); box-shadow: var(--shadow); backdrop-filter: blur(10px); }
+
+.kpis { position: absolute; top: 16px; left: 16px; display: flex; gap: 12px; z-index: 2; max-width: calc(100% - 420px); overflow-x: auto; padding-bottom: 4px; }
+.kpi { display: flex; align-items: center; gap: 12px; padding: 12px 16px 12px 12px; min-width: 176px; }
+.kpi .ico, .ico-tile { width: 40px; height: 40px; border-radius: 10px; background: var(--accent-wash); color: var(--accent); display: grid; place-items: center; flex: none; }
+.kpi label { display: block; font-size: 11.5px; color: var(--ink); font-weight: 600; }
+.kpi .val { display: flex; align-items: baseline; gap: 6px; font-size: 21px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+.kpi .val small { font-size: 12px; color: var(--muted); font-weight: 600; }
+.delta { font-size: 11px; font-weight: 700; color: var(--good); }
+.delta.down { color: var(--bad); }
+.kpi .sub { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+
+.mapctl { position: absolute; top: 16px; right: 372px; z-index: 2; display: flex; flex-direction: column; padding: 4px; gap: 2px; }
+.mapctl button { width: 32px; height: 32px; border: 0; background: transparent; border-radius: 8px; display: grid; place-items: center; color: var(--ink); }
+.mapctl button:hover { background: var(--wash); }
+.mapctl hr { border: 0; border-top: 1px solid var(--line); margin: 3px 4px; }
+
+.tip { position: absolute; z-index: 4; pointer-events: none; background: var(--panel-solid); border-radius: 10px; box-shadow: var(--shadow); padding: 9px 11px; min-width: 170px; font-size: 12px; border: 1px solid var(--line); }
+.tip b { font-family: var(--font-data); font-size: 12.5px; }
+.tip .row { display: flex; justify-content: space-between; gap: 14px; color: var(--muted); }
+.tip .row span:last-child { color: var(--ink); font-weight: 700; }
+.tip .hint { margin-top: 6px; color: var(--accent); font-weight: 700; }
+
+.toasts { position: absolute; z-index: 6; top: 96px; left: 50%; transform: translateX(-60%); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: max-content; max-width: calc(100% - 32px); }
+.toast { display: flex; align-items: center; gap: 9px; background: var(--ink); color: #fff; border-radius: 999px; padding: 8px 14px 8px 10px; font-weight: 600; font-size: 12.5px; box-shadow: var(--shadow); animation: tin .25s ease-out; }
+.toast i { width: 8px; height: 8px; border-radius: 50%; background: #6f8cff; flex: none; }
+.toast.good i { background: #3ddc97; } .toast.warn i { background: #f7b733; } .toast.bad i { background: #ff6b6b; }
+@keyframes tin { from { transform: translateY(-6px); opacity: 0; } }
+
+/* ---------- site panel ---------- */
+.site { position: absolute; top: 16px; right: 16px; width: 340px; z-index: 2; max-height: calc(100% - 236px); overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.site-head { display: flex; gap: 11px; align-items: center; }
+.eyebrow { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.site-head h2 { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
+.site-head p { margin: 0; font-size: 11.5px; color: var(--muted); }
+.status-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); padding-top: 10px; border-top: 1px solid var(--line); }
+.chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.chip.good { background: var(--good-wash); color: var(--good); }
+.chip.warn { background: var(--warn-wash); color: var(--warn); }
+.chip.bad { background: var(--bad-wash); color: var(--bad); }
+.chip.info { background: var(--accent-wash); color: var(--accent-ink); }
+.chip.idle { background: var(--wash); color: var(--muted); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tile { background: var(--wash); border-radius: 10px; padding: 9px 10px; min-width: 0; }
+.tile label { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
+.tile .v { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+.tile .v small { font-size: 11px; color: var(--muted); font-weight: 600; }
+.bar { height: 5px; border-radius: 3px; background: #dfe4f0; overflow: hidden; margin-top: 6px; }
+.bar > i { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width .4s; }
+.bar.good > i { background: var(--good); } .bar.warn > i { background: #e3a21a; } .bar.bad > i { background: var(--bad); }
+.sec-title { display: flex; justify-content: space-between; align-items: baseline; font-weight: 800; font-size: 12px; margin-bottom: 4px; }
+.sec-title span { font-weight: 600; color: var(--muted); font-size: 11px; }
+.list { display: flex; flex-direction: column; }
+.li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.li:last-child { border-bottom: 0; }
+.li .grow { flex: 1; min-width: 0; }
+.li .qty { font-weight: 800; width: 34px; text-align: right; }
+.part-ico { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; background: var(--wash); color: var(--accent); flex: none; }
+.selected-rack { border: 1px solid var(--line); border-radius: 12px; padding: 11px; display: flex; flex-direction: column; gap: 8px; }
+.selected-rack .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.selected-rack .top b { font-family: var(--font-data); font-size: 14px; }
+.kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.kv div { background: var(--wash); border-radius: 8px; padding: 6px 8px; }
+.kv label { display: block; font-size: 10.5px; color: var(--muted); font-weight: 600; }
+.kv span { font-weight: 800; }
+.btn { border: 0; border-radius: 9px; padding: 8px 12px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-ink); }
+.btn.ghost { background: var(--accent-wash); color: var(--accent-ink); }
+.btn.ghost:hover { background: #dbe4ff; }
+.btn:disabled { background: var(--wash); color: var(--faint); cursor: not-allowed; }
+.btn.sm { padding: 5px 9px; font-size: 11px; border-radius: 7px; }
+
+/* ---------- deployment tracker ---------- */
+.deploy { position: absolute; left: 16px; bottom: 16px; z-index: 2; width: min(800px, calc(100% - 440px)); padding: 14px 16px; display: flex; gap: 16px; align-items: stretch; }
+.deploy .track { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.deploy .track-head { display: flex; justify-content: space-between; gap: 10px; }
+.deploy .track-head b { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.deploy .track-head span { color: var(--muted); font-size: 11px; }
+.stages { display: grid; grid-template-columns: repeat(5, 1fr); position: relative; }
+.stage-node { display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; position: relative; }
+.stage-node::before { content: ""; position: absolute; top: 15px; right: 50%; width: 100%; height: 2px; background: #dfe4f0; z-index: 0; }
+.stage-node:first-child::before { display: none; }
+.stage-node.done::before, .stage-node.now::before { background: var(--accent); }
+.dot { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--wash); color: var(--faint); border: 2px solid #dfe4f0; position: relative; z-index: 1; }
+.done .dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+.now .dot { background: #fff; border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 5px rgba(47,91,234,.15); animation: pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(47,91,234,.06); } }
+.stage-node b { font-size: 11.5px; font-weight: 700; }
+.stage-node small { font-size: 10.5px; color: var(--muted); font-family: var(--font-data); }
+.order-card { width: 250px; flex: none; background: var(--wash); border-radius: 12px; padding: 11px 12px; display: flex; flex-direction: column; gap: 6px; }
+.order-card .oid { font-family: var(--font-data); font-weight: 600; font-size: 13px; }
+.order-card p { margin: 0; font-size: 11.5px; color: var(--muted); }
+.order-card .btn { margin-top: auto; }
+
+/* ---------- ops tabs ---------- */
+.ops { position: absolute; right: 16px; bottom: 16px; width: 380px; z-index: 2; padding: 10px 12px 8px; }
+.tabs { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.tab { border: 0; background: transparent; border-radius: 8px; padding: 5px 10px; font-weight: 700; font-size: 12px; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--panel-solid); color: var(--ink); box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(18,26,51,.08); }
+.tab em { font-style: normal; color: var(--faint); margin-left: 3px; }
+.tab.alert em { color: var(--bad); }
+.tabs .spacer + span { font-size: 11px; color: var(--muted); }
+.ops-body { max-height: 150px; overflow-y: auto; }
+.ops .li { padding: 6px 0; font-size: 12px; }
+.ops .li .id { font-family: var(--font-data); font-weight: 600; width: 46px; flex: none; }
+.ops .li .sub { color: var(--muted); font-size: 11px; display: block; }
+.mini-bar { width: 52px; flex: none; }
+.empty { color: var(--muted); font-size: 12px; padding: 14px 0; text-align: center; }
+.crew-av { width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 9.5px; font-weight: 800; display: grid; place-items: center; flex: none; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  .site { width: 300px; }
+  .ops { width: 330px; }
+  .mapctl { right: 332px; }
+  .deploy { width: calc(100% - 378px); }
+  .order-card { width: 200px; }
+  .kpis { max-width: calc(100% - 380px); }
+  .me div, .site-chip div { display: none; }
+}
+@media (max-width: 900px) {
+  body { overflow: auto; }
+  .app { height: auto; min-height: 100%; }
+  .topbar { flex-wrap: wrap; gap: 10px; }
+  .search { order: 5; flex-basis: 100%; max-width: none; }
+  .site-chip, .me { display: none; }
+  .stage { display: flex; flex-direction: column; gap: 12px; padding: 0 16px 20px; }
+  .canvas-wrap { position: relative; inset: auto; height: 62vh; min-height: 380px; margin: 0 -16px; }
+  .kpis { top: 12px; left: 12px; right: 12px; max-width: none; }
+  .kpi { min-width: 150px; padding: 9px 12px 9px 9px; }
+  .kpi .ico { width: 32px; height: 32px; }
+  .kpi .val { font-size: 17px; }
+  .mapctl { top: auto; bottom: 12px; right: 12px; flex-direction: row; }
+  .mapctl hr { border-top: 0; border-left: 1px solid var(--line); margin: 4px 3px; }
+  .site, .deploy, .ops { position: static; width: auto; max-height: none; }
+  .deploy { flex-direction: column; }
+  .order-card { width: auto; }
+  .stage-node b { font-size: 10.5px; }
+  .stage-node small { font-size: 9.5px; }
+  .ops-body { max-height: none; }
+  .toasts { top: 70px; transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .now .dot { animation: none; }
+  .toast { animation: none; }
+}
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span id="logo"></span>Data Center Boss</div>
+    <label class="search" for="search">
+      <span data-icon="search"></span>
+      <input id="search" type="search" autocomplete="off" placeholder="Find a rack, crew or delivery (try D03)">
+      <kbd>/</kbd>
+    </label>
+    <div class="spacer"></div>
+    <div class="site-chip"><span class="site-code">DC-01</span><div><b>Ashburn Campus</b><small id="siteSub">70% full</small></div></div>
+    <div class="live"><i></i>Live <span id="clock">09:40</span></div>
+    <button class="bell" id="bell" data-act="alerts" aria-label="Show alerts"><span data-icon="bell"></span><span class="badge" id="bellBadge" hidden>0</span></button>
+    <div class="me"><span class="avatar">YOU</span><div><b>You</b><small>Site Boss</small></div></div>
+  </header>
+
+  <main class="stage">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="scene" aria-label="Isometric view of the data center campus. Click a rack to inspect it, or an alert pin to send a technician."></canvas>
+      <section class="kpis" id="kpis" aria-label="Key figures"></section>
+      <div class="mapctl panel" aria-label="Map controls">
+        <button data-act="zoomin" aria-label="Zoom in"><span data-icon="plus"></span></button>
+        <button data-act="zoomout" aria-label="Zoom out"><span data-icon="minus"></span></button>
+        <hr>
+        <button data-act="rotl" aria-label="Rotate left"><span data-icon="rotl"></span></button>
+        <button data-act="rotr" aria-label="Rotate right"><span data-icon="rotr"></span></button>
+        <button data-act="home" aria-label="Reset view"><span data-icon="home"></span></button>
+      </div>
+      <div class="tip" id="tip" hidden></div>
+      <div class="toasts" id="toasts" aria-live="polite"></div>
+    </div>
+
+    <aside class="site panel" aria-label="Site details">
+      <div class="site-head">
+        <div class="ico-tile"><span data-icon="building"></span></div>
+        <div style="flex:1;min-width:0">
+          <div class="eyebrow">Campus · DC-01</div>
+          <h2>Ashburn Campus</h2>
+          <p>21 Loudoun Tech Dr, Ashburn VA</p>
+        </div>
+      </div>
+      <div class="status-line" id="statusLine"></div>
+      <div class="tiles" id="tiles"></div>
+      <div id="rackCard"></div>
+      <div>
+        <div class="sec-title">Spare parts <span>units on site</span></div>
+        <div class="list" id="spares"></div>
+      </div>
+    </aside>
+
+    <section class="deploy panel" aria-label="Rack deployment" id="deploy"></section>
+
+    <section class="ops panel" aria-label="Operations">
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div class="ops-body" id="opsBody"></div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const money = v => v >= 1e6 ? "$" + (v / 1e6).toFixed(2) + "M" : "$" + Math.round(v / 1000) + "k";
+const hhmm = m => { m = Math.floor(m) % 1440; return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); };
+
+/* ---------------- icons ---------------- */
+const P = (d, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICON = {
+  search: P('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', 16),
+  bell: P('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>', 20),
+  plus: P('<path d="M12 5v14M5 12h14"/>'), minus: P('<path d="M5 12h14"/>'),
+  rotl: P('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>', 16),
+  rotr: P('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>', 16),
+  home: P('<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>', 16),
+  bolt: P('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>', 20),
+  rack: P('<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M5 8h14M5 14h14"/><path d="M9 5h.01M9 11h.01M9 17h.01"/>', 20),
+  gauge: P('<path d="M12 14 16 9"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/>', 20),
+  shield: P('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/>', 20),
+  wallet: P('<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3h-5a2 2 0 0 0 0 4h5v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/>', 20),
+  building: P('<path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5M9 11h.01M15 11h.01"/>', 20),
+  order: P('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', 14),
+  truck: P('<path d="M2 6h11v10H2zM13 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>', 14),
+  box: P('<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>', 14),
+  wrench: P('<path d="M14.7 6.3a4 4 0 0 0 5 5L22 14l-8 8-2.3-2.3a4 4 0 0 0-5-5L2 10l8-8z"/>', 14),
+  flame: P('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3.3.2 1.6 1.4 2.8 2.5 2.8"/>', 14),
+  check: P('<path d="m5 12 5 5L20 7"/>', 14),
+  fan: P('<circle cx="12" cy="12" r="2"/><path d="M12 10c0-4 1-7 4-7s2 5-2 7M14 12c4 0 7 1 7 4s-5 2-7-2M12 14c0 4-1 7-4 7s-2-5 2-7M10 12c-4 0-7-1-7-4s5-2 7 2"/>', 15),
+  chip: P('<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>', 15),
+  plug: P('<path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/>', 15),
+  link: P('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>', 15),
+};
+$("#logo").innerHTML = `<svg width="30" height="30" viewBox="0 0 32 32"><path d="M16 2 29 9.5v13L16 30 3 22.5v-13z" fill="#2f5bea"/><path d="M16 2 29 9.5 16 17 3 9.5z" fill="#6f8cff"/><path d="M16 17v13L3 22.5v-13z" fill="#1f45c7"/><path d="M9 20.5h.01M9 17h.01" stroke="#7df0b8" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+document.querySelectorAll("[data-icon]").forEach(el => { el.outerHTML = ICON[el.dataset.icon]; });
+
+/* ---------------- renderer, camera ---------------- */
+const wrap = $("#canvasWrap"), canvas = $("#scene");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe9edf7);
+
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 400);
+const HOME_TARGET = new THREE.Vector3(1, 0, -2);
+camera.position.copy(HOME_TARGET).add(new THREE.Vector3(40, 36, 40));
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.target.copy(HOME_TARGET);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minZoom = 0.55; controls.maxZoom = 3.4;
+controls.minPolarAngle = 0.5; controls.maxPolarAngle = 1.15;
+controls.update(); controls.saveState();
+
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  const narrow = w < 900;
+  const view = narrow ? 40 : 37;
+  const a = w / h, upp = view / h;
+  // nudge the scene away from the floating panels on wide screens
+  const sx = narrow ? 0 : 150 * upp, sy = narrow ? 0 : -40 * upp;
+  camera.left = -view * a / 2 + sx; camera.right = view * a / 2 + sx;
+  camera.top = view / 2 + sy; camera.bottom = -view / 2 + sy;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(wrap);
+resize();
+
+/* ---------------- lights ---------------- */
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb6c1e6, 0.62));
+scene.add(new THREE.AmbientLight(0xffffff, 0.08));
+const sun = new THREE.DirectionalLight(0xffffff, 0.58);
+sun.position.set(-22, 46, 26);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, near: 1, far: 140 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+scene.add(sun);
+
+/* ---------------- helpers ---------------- */
+const MATS = {};
+function mat(color, o = {}) {
+  const k = color + JSON.stringify(o);
+  return MATS[k] || (MATS[k] = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.78, metalness: 0 }, o)));
+}
+function box(w, h, d, m, x, y, z, parent = scene, shadow = true) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof m === "number" ? mat(m) : m);
+  mesh.position.set(x, y + h / 2, z);
+  mesh.castShadow = shadow; mesh.receiveShadow = true;
+  parent.add(mesh); return mesh;
+}
+function cyl(rt, rb, h, m, x, y, z, parent = scene, seg = 20) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), typeof m === "number" ? mat(m) : m);
+  mesh.position.set(x, y + h / 2, z);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  parent.add(mesh); return mesh;
+}
+function textTexture(draw, w = 512, h = 128) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  draw(c.getContext("2d"), w, h);
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+}
+function decal(tex, w, h, parent = scene) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.8 }));
+  parent.add(m); return m;
+}
+function logoPath(ctx, x, y, s) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s / 32, s / 32);
+  const path = (d, f) => { ctx.fillStyle = f; ctx.fill(new Path2D(d)); };
+  path("M16 2 29 9.5v13L16 30 3 22.5v-13z", "#2f5bea");
+  path("M16 2 29 9.5 16 17 3 9.5z", "#6f8cff");
+  path("M16 17v13L3 22.5v-13z", "#1f45c7");
+  ctx.restore();
+}
+
+const C = {
+  ground: 0xe3e7f2, pad: 0xf1f3f9, road: 0xd3d9e9, blue: 0x2f5bea, blueRoof: 0x4c73f0, blueRib: 0x3a62e8,
+  blueDark: 0x2247c6, white: 0xf5f7fc, grey: 0xc8cfe0, steel: 0x8f98b0, ink: 0x232b45,
+  crate: 0xdcb27c, crate2: 0xd2a56c, wood: 0xb68856, tree: 0x47bf85, tree2: 0x3cae77, trunk: 0x9a7a5c,
+  yellow: 0xf3b73f, teal: 0x1aa8a0, rack: 0x18203b, rackDark: 0x646d8b,
+};
+
+/* ---------------- ground, roads ---------------- */
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), mat(C.ground));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+box(56, 0.08, 29, C.pad, 5.5, 0, -3.5, scene, false);
+box(400, 0.1, 6, C.road, 0, 0, 14, scene, false);
+box(6, 0.1, 60, C.road, -26, 0, -19, scene, false);
+for (let x = -120; x <= 120; x += 5) if (Math.abs(x + 26) > 4) box(2.2, 0.02, 0.18, 0xffffff, x, 0.1, 14, scene, false);
+for (let z = -46; z <= 8; z += 5) box(0.18, 0.02, 2.2, 0xffffff, -26, 0.1, z, scene, false);
+box(400, 0.03, 0.14, 0xffffff, 0, 0.1, 11.2, scene, false);
+box(400, 0.03, 0.14, 0xffffff, 0, 0.1, 16.8, scene, false);
+for (const x of [-14.75, -10.25, -5.75, -1.25]) box(0.12, 0.02, 6.2, 0xf0c24a, x, 0.09, 7.7, scene, false);
+
+/* ---------------- Hall A (closed, loading dock) ---------------- */
+box(16, 4.4, 12, C.blue, -8, 0, -3);
+box(16.04, 1.25, 12.04, 0xdde4f6, -8, 0, -3);
+box(16.6, 0.35, 12.6, C.blueRoof, -8, 4.4, -3);
+for (let x = -15.8; x <= -0.2; x += 0.8) box(0.14, 0.12, 12.6, C.blueRib, x, 4.75, -3, scene, false);
+{
+  const disk = cyl(1.8, 1.8, 0.08, C.white, -8, 4.86, -3);
+  disk.castShadow = false;
+  const t = textTexture((g, w, h) => logoPath(g, w / 2 - 90, h / 2 - 90, 180), 256, 256);
+  const d = decal(t, 2.6, 2.6); d.rotation.x = -Math.PI / 2; d.position.set(-8, 4.95, -3);
+  const lt = textTexture((g, w, h) => { g.fillStyle = "#ffffff"; g.font = "800 84px Manrope, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("HALL A", w / 2, h / 2 + 4); });
+  const l = decal(lt, 4.4, 1.1); l.rotation.y = Math.PI / 2; l.position.set(0.03, 3.3, -3);
+}
+const BAYS = [-12.5, -8, -3.5];
+BAYS.forEach((bx, i) => {
+  box(3.0, 3.3, 0.12, C.white, bx, 0.15, 3.02, scene, false);
+  box(2.5, 2.75, 0.14, C.ink, bx, 0.45, 3.04, scene, false);
+  const t = textTexture((g, w, h) => { g.fillStyle = "#2f5bea"; g.fillRect(0, 0, w, h); g.fillStyle = "#fff"; g.font = "800 80px 'IBM Plex Mono', monospace"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(String(i + 1), w / 2, h / 2 + 4); }, 128, 128);
+  const d = decal(t, 0.55, 0.55); d.position.set(bx, 3.75, 3.1);
+});
+box(16, 0.6, 1.6, 0xc6cde0, -8, 0, 3.8);
+for (const bx of BAYS) { box(0.25, 0.4, 0.15, 0x2a3048, bx - 1.1, 0.1, 4.62); box(0.25, 0.4, 0.15, 0x2a3048, bx + 1.1, 0.1, 4.62); }
+// crates staged inside the open bay doors
+for (const bx of [-12.5, -3.5]) { const p = pallet(bx, 2.2, 2); p.scale.setScalar(0.8); }
+
+/* ---------------- Hall B (cutaway) ---------------- */
+box(15.4, 0.25, 12.4, 0xf3f5fb, 10, 0, -2);
+box(15.4, 3.4, 0.3, C.blue, 10, 0.25, -8.05);
+box(0.3, 3.4, 12.4, C.blue, 2.35, 0.25, -2);
+box(15.4, 0.35, 0.36, C.blueRoof, 10, 3.65, -8.05);
+box(0.36, 0.35, 12.4, C.blueRoof, 2.35, 3.65, -2);
+box(15.4, 0.8, 0.3, 0xdde4f6, 10, 0.25, 4.05);
+box(0.3, 0.8, 12.4, 0xdde4f6, 17.65, 0.25, -2);
+box(15.42, 0.08, 0.32, C.blue, 10, 1.05, 4.05, scene, false);
+box(0.32, 0.08, 12.42, C.blue, 17.65, 1.05, -2, scene, false);
+{
+  const lt = textTexture((g, w, h) => { g.fillStyle = "#ffffff"; g.font = "800 84px Manrope, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("HALL B", w / 2, h / 2 + 4); });
+  const l = decal(lt, 4.4, 1.1); l.position.set(10, 2.3, -7.88);
+}
+// cold aisle floor tiles
+box(8.6, 0.02, 1.9, 0xdde6ff, 7.83, 0.25, -6.65, scene, false);
+box(8.6, 0.02, 2.9, 0xdde6ff, 7.83, 0.25, -1.4, scene, false);
+box(8.6, 0.02, 1.1, 0xdde6ff, 7.83, 0.25, 3.3, scene, false);
+// CRAH units along the right wall
+for (const z of [-6.6, -3.6, -0.6, 2.4]) {
+  box(1.0, 2.1, 1.5, C.white, 16.6, 0.25, z);
+  for (let k = 0; k < 4; k++) box(0.03, 0.08, 1.2, 0x9fb0d6, 16.08, 0.7 + k * 0.32, z, scene, false);
+  box(1.02, 0.18, 1.52, C.blue, 16.6, 2.2, z, scene, false);
+}
+
+const ROWS = [
+  { n: "A", z: -5.0, f: -1, aisle: -6.6 },
+  { n: "B", z: -3.4, f: 1, aisle: -1.4 },
+  { n: "C", z: 0.6, f: -1, aisle: -1.4 },
+  { n: "D", z: 2.2, f: 1, aisle: 3.3 },
+];
+ROWS.forEach(r => {
+  const t = textTexture((g, w, h) => { g.fillStyle = "#2f5bea"; g.beginPath(); g.arc(w / 2, h / 2, 56, 0, 7); g.fill(); g.fillStyle = "#fff"; g.font = "800 72px Manrope, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(r.n, w / 2, h / 2 + 4); }, 128, 128);
+  const d = decal(t, 0.7, 0.7); d.rotation.x = -Math.PI / 2; d.position.set(3.05, 0.27, r.z);
+});
+// hot aisle containment roofs
+const glass = new THREE.MeshStandardMaterial({ color: 0x90adff, transparent: true, opacity: 0.38, depthWrite: false, roughness: 0.2 });
+for (const z of [-4.2, 1.4]) {
+  const r = box(8.7, 0.05, 1.7, glass, 7.83, 2.36, z, scene, false);
+  box(0.05, 2.1, 0.6, glass, 3.5, 0.25, z, scene, false);
+  box(0.05, 2.1, 0.6, glass, 12.16, 0.25, z, scene, false);
+}
+
+/* rack front textures */
+const SLOT = s => 0.1 + (s + 0.5) * 0.1333;
+function rackTexture(kind) {
+  return textTexture((g, w, h) => {
+    if (kind === "dark") {
+      g.fillStyle = "#566080"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#6c7697"; g.fillRect(0, 0, 6, h); g.fillRect(w - 6, 0, 6, h);
+      g.fillStyle = "#8a94b3"; for (let y = 8; y < h - 6; y += 8) { g.fillRect(8, y, 3, 2); g.fillRect(w - 11, y, 3, 2); }
+      return;
+    }
+    g.fillStyle = "#141a31"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#28304f"; g.fillRect(0, 0, 5, h); g.fillRect(w - 5, 0, 5, h);
+    for (let s = 0; s < 6; s++) {
+      const cy = h * (1 - SLOT(s)), sh = h * 0.1333 - 4;
+      g.fillStyle = "#222b4c"; g.fillRect(7, cy - sh / 2, w - 14, sh);
+      g.fillStyle = "#323d68"; for (let k = 0; k < 4; k++) g.fillRect(24, cy - sh / 2 + 4 + k * 5, w - 34, 2);
+    }
+  }, 64, 192);
+}
+const rackGeo = new THREE.BoxGeometry(0.72, 2.1, 1.0);
+const TEX = { live: rackTexture("live"), dark: rackTexture("dark") };
+function rackMaterials(kind) {
+  const side = mat(kind === "dark" ? C.rackDark : C.rack, { roughness: 0.55 });
+  const front = new THREE.MeshStandardMaterial({ map: TEX[kind === "dark" ? "dark" : "live"], roughness: 0.5 });
+  return [side, side, side, side, front, front];
+}
+const RACK_MATS = { live: rackMaterials("live"), dark: rackMaterials("dark") };
+
+const LEDS_PER = 12;
+const racks = [];
+const leds = new THREE.InstancedMesh(new THREE.BoxGeometry(0.07, 0.04, 0.02), new THREE.MeshBasicMaterial(), ROWS.length * 10 * LEDS_PER);
+const dummy = new THREE.Object3D();
+ROWS.forEach(r => {
+  for (let i = 0; i < 10; i++) {
+    const x = 4.0 + i * 0.85;
+    const rack = {
+      id: r.n + String(i + 1).padStart(2, "0"), row: r, x, z: r.z, aisle: r.aisle,
+      status: "live", inlet: rand(22, 25), kw: rand(34, 44), incident: null, ledStart: racks.length * LEDS_PER,
+    };
+    const m = new THREE.Mesh(rackGeo, RACK_MATS.live);
+    m.position.set(x, 0.25 + 1.05, r.z); m.castShadow = true; m.receiveShadow = true;
+    m.userData.rack = rack; rack.mesh = m; scene.add(m);
+    for (let k = 0; k < LEDS_PER; k++) {
+      const s = Math.floor(k / 2), col = k % 2;
+      dummy.position.set(x - 0.25 + col * 0.09, 0.25 + 2.1 * SLOT(s), r.z + r.f * 0.506);
+      dummy.updateMatrix();
+      leds.setMatrixAt(rack.ledStart + k, dummy.matrix);
+      leds.setColorAt(rack.ledStart + k, new THREE.Color(0x35e39a));
+    }
+    racks.push(rack);
+  }
+});
+scene.add(leds);
+const rackById = id => racks.find(r => r.id === id);
+function setRackStatus(rack, status) {
+  rack.status = status;
+  rack.mesh.material = status === "dark" ? RACK_MATS.dark : RACK_MATS.live;
+  if (status === "dark") rack.kw = 0; else if (!rack.kw) rack.kw = rand(36, 44);
+}
+// Row D and the tail of row C start empty
+racks.forEach(r => { if (r.row.n === "D" || (r.row.n === "C" && r.x > 10.5)) setRackStatus(r, "dark"); });
+
+/* ---------------- yard props ---------------- */
+function pallet(x, z, stack = 2, parent = scene) {
+  const g = new THREE.Group();
+  box(1.2, 0.15, 1.2, C.wood, 0, 0, 0, g);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < stack; j++) {
+    const cx = (i % 2 - 0.5) * 0.58, cz = (Math.floor(i / 2) - 0.5) * 0.58, y = 0.15 + j * 0.46;
+    box(0.56, 0.45, 0.56, (i + j) % 2 ? C.crate : C.crate2, cx, y, cz, g);
+    box(0.57, 0.02, 0.1, 0xc08f58, cx, y + 0.44, cz, g, false);
+  }
+  g.position.set(x, 0, z); parent.add(g); return g;
+}
+function tree(x, z, s = 1) {
+  cyl(0.12 * s, 0.16 * s, 0.9 * s, C.trunk, x, 0, z);
+  const top = new THREE.Mesh(new THREE.SphereGeometry(0.85 * s, 16, 12), mat(Math.random() < 0.5 ? C.tree : C.tree2));
+  top.scale.y = 1.35; top.position.set(x, 0.9 * s + 1.05 * s, z); top.castShadow = true;
+  scene.add(top);
+}
+const fans = [];
+function chiller(x, z) {
+  box(3.2, 1.25, 2.2, C.white, x, 0.08, z);
+  box(3.22, 0.2, 2.22, C.blue, x, 1.0, z, scene, false);
+  for (let k = 0; k < 6; k++) box(0.02, 0.6, 1.6, 0xb9c3dc, x + 1.61, 0.25, z, scene, false);
+  for (const k of [-0.78, 0.78]) {
+    cyl(0.64, 0.64, 0.14, 0x2a3350, x + k, 1.33, z);
+    const g = new THREE.Group(); g.position.set(x + k, 1.5, z);
+    for (let b = 0; b < 3; b++) { const bl = box(1.05, 0.03, 0.2, 0xc9d1e6, 0, 0, 0, g, false); bl.rotation.y = b * Math.PI / 3; }
+    scene.add(g); fans.push(g);
+  }
+}
+box(8.6, 0.12, 10.4, 0xd9deeb, 23.5, 0, -4.5, scene, false);
+for (const cx of [21.5, 25.5]) for (const cz of [-8, -4.5, -1]) chiller(cx, cz);
+
+function genset(x, z) {
+  box(4.0, 2.0, 1.9, C.white, x, 0.08, z);
+  box(4.02, 0.28, 1.92, C.blue, x, 1.45, z, scene, false);
+  for (let k = 0; k < 5; k++) box(0.5, 0.9, 0.02, 0xc5ccdd, x - 1.2 + k * 0.6, 0.4, z + 0.96, scene, false);
+  cyl(0.13, 0.13, 0.9, C.steel, x + 1.4, 2.08, z - 0.4);
+}
+box(5.2, 0.12, 9.6, 0xd9deeb, -20.5, 0, 1.2, scene, false);
+for (const z of [-1.6, 1.2, 4.0]) genset(-20.5, z);
+{ const t = cyl(0.8, 0.8, 4.2, C.white, -20.5, 0, 7.6); t.rotation.z = Math.PI / 2; t.position.y = 0.95; }
+
+// substation
+box(8, 0.12, 5.4, 0xd5dbe8, 24.5, 0, -13.5, scene, false);
+for (const x of [22.3, 26.3]) {
+  box(1.8, 1.9, 1.5, 0x9aa4bc, x, 0.12, -13.5);
+  for (let k = 0; k < 4; k++) box(0.06, 1.5, 1.6, 0x8790a8, x - 0.6 + k * 0.4, 0.3, -13.5, scene, false);
+  for (const dz of [-0.4, 0, 0.4]) cyl(0.07, 0.09, 0.7, 0xe7eaf2, x, 2.02, -13.5 + dz);
+}
+for (let x = 20.6; x <= 28.4; x += 1.3) { cyl(0.04, 0.04, 1.5, C.steel, x, 0, -16.1); cyl(0.04, 0.04, 1.5, C.steel, x, 0, -10.9); }
+box(7.9, 0.04, 0.04, C.steel, 24.5, 1.45, -16.1, scene, false);
+box(7.9, 0.04, 0.04, C.steel, 24.5, 1.45, -10.9, scene, false);
+
+// spares container
+{
+  box(6, 2.5, 2.4, C.teal, 9.5, 0, 8.2);
+  for (let k = 0; k < 14; k++) box(0.06, 2.3, 2.44, 0x15948d, 6.8 + k * 0.4, 0.1, 8.2, scene, false);
+  const t = textTexture((g, w, h) => { g.fillStyle = "rgba(255,255,255,.92)"; g.font = "800 76px Manrope, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("SPARES", w / 2, h / 2 + 4); });
+  const d = decal(t, 3.6, 0.9); d.position.set(9.5, 1.5, 9.45);
+}
+// pallets around the yard
+pallet(14.5, 6.6, 2); pallet(16.0, 6.6, 1); pallet(15.2, 8.2, 2); pallet(-1.0, 6.5, 1);
+// forklift
+const forklift = new THREE.Group();
+{
+  const g = forklift;
+  box(1.0, 0.55, 1.5, C.yellow, 0, 0.2, 0, g);
+  box(0.9, 0.5, 0.5, 0x3a4260, 0, 0.75, -0.45, g);
+  for (const x of [-0.42, 0.42]) { cyl(0.04, 0.04, 1.3, 0x2a3048, x, 0.75, 0.3, g); cyl(0.04, 0.04, 1.3, 0x2a3048, x, 0.75, -0.6, g); }
+  box(0.92, 0.06, 1.0, 0x2a3048, 0, 2.05, -0.15, g);
+  for (const x of [-0.3, 0.3]) box(0.1, 1.6, 0.08, 0x3a4260, x, 0.1, 0.8, g);
+  for (const x of [-0.25, 0.25]) box(0.12, 0.05, 0.9, 0x3a4260, x, 0.1, 1.2, g);
+  cyl(0.14, 0.15, 0.45, C.blue, 0, 0.75, -0.05, g);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), mat(0xe2ae86)); head.position.set(0, 1.35, -0.05); g.add(head);
+  const hat = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(C.yellow)); hat.position.set(0, 1.4, -0.05); g.add(hat);
+  for (const [x, z] of [[-0.52, 0.45], [0.52, 0.45], [-0.52, -0.5], [0.52, -0.5]]) { const w = cyl(0.2, 0.2, 0.16, 0x232838, x, 0.2, z, g); w.rotation.z = Math.PI / 2; w.position.y = 0.2; }
+  g.position.set(-15.4, 0, 7.4); g.rotation.y = 0.5; scene.add(g);
+}
+// trees
+[[-33, -10], [-33, -2], [-34, 6], [-31, -18], [-19, -15], [-11, -15], [-3, -14], [31, -6], [31, 2], [30, 7], [20, 7.5], [-10, 21], [2, 20.5], [16, 21], [28, 20], [-22, 20], [34, -14]]
+  .forEach(([x, z], i) => tree(x, z, 0.85 + (i % 3) * 0.15));
+
+/* ---------------- trucks ---------------- */
+function makeTruck(cabColor, name, tagline) {
+  const g = new THREE.Group();
+  box(6, 2.45, 2.2, C.white, -0.6, 0.65, 0, g);
+  box(6.02, 0.2, 2.22, cabColor, -0.6, 0.62, 0, g, false);
+  box(1.75, 1.9, 2.1, cabColor, 3.15, 0.45, 0, g);
+  box(0.06, 0.75, 1.8, 0x1b2236, 4.03, 1.45, 0, g, false);
+  box(0.4, 0.35, 2.1, 0x2a3048, 3.9, 0.35, 0, g);
+  for (const x of [3.2, -2.4, -3.1]) for (const z of [-0.95, 0.95]) {
+    const w = cyl(0.42, 0.42, 0.3, 0x20263a, x, 0, z, g); w.rotation.x = Math.PI / 2; w.position.y = 0.42;
+  }
+  const t = textTexture((c, w, h) => {
+    logoPath(c, 22, 24, 80);
+    c.fillStyle = "#1f45c7"; c.font = "800 56px Manrope, sans-serif"; c.textBaseline = "alphabetic"; c.fillText(name, 118, 74);
+    c.fillStyle = "#69738d"; c.font = "600 26px Manrope, sans-serif"; c.fillText(tagline, 120, 108);
+  });
+  const s1 = decal(t, 4.6, 1.15, g); s1.position.set(-0.6, 1.95, 1.111);
+  const s2 = decal(t, 4.6, 1.15, g); s2.position.set(-0.6, 1.95, -1.111); s2.rotation.y = Math.PI;
+  return g;
+}
+const parked = makeTruck(0x232b45, "Northwind", "Freight & storage");
+parked.position.set(-3.5, 0, 8.3); parked.rotation.y = -Math.PI / 2; scene.add(parked);
+
+const truck = { g: makeTruck(C.blue, "DCB Logistics", "Servers · racks · spares"), phase: "idle", turn: 0 };
+truck.g.visible = false; scene.add(truck.g);
+const DOCK_X = -8, LANE_Z = 14.8, DOCK_Z = 8.3;
+truck.start = (x = -75) => { truck.phase = "in"; truck.g.visible = true; truck.g.position.set(x, 0, LANE_Z); truck.g.rotation.y = 0; };
+truck.update = dt => {
+  const p = truck.g.position;
+  switch (truck.phase) {
+    case "in": p.x += 13 * dt; if (p.x >= DOCK_X) { p.x = DOCK_X; truck.phase = "turn1"; truck.turn = 0; } break;
+    case "turn1": truck.turn = Math.min(1, truck.turn + dt / 0.9); truck.g.rotation.y = -Math.PI / 2 * ease(truck.turn); if (truck.turn >= 1) truck.phase = "back"; break;
+    case "back": p.z -= 3.2 * dt; if (p.z <= DOCK_Z) { p.z = DOCK_Z; truck.phase = "docked"; onTruckDocked(); } break;
+    case "out": p.z += 3.8 * dt; if (p.z >= LANE_Z) { p.z = LANE_Z; truck.phase = "turn2"; truck.turn = 0; } break;
+    case "turn2": truck.turn = Math.min(1, truck.turn + dt / 0.9); truck.g.rotation.y = -Math.PI / 2 * (1 - ease(truck.turn)); if (truck.turn >= 1) truck.phase = "leave"; break;
+    case "leave": p.x += 13 * dt; if (p.x > 75) { truck.phase = "idle"; truck.g.visible = false; } break;
+  }
+};
+const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const dockCrates = new THREE.Group(); scene.add(dockCrates);
+pallet(-9.6, 5.6, 2, dockCrates); pallet(-6.4, 5.6, 2, dockCrates);
+dockCrates.visible = false;
+
+/* ---------------- crews ---------------- */
+function makeCart(color) {
+  const g = new THREE.Group();
+  box(0.56, 0.3, 0.9, C.white, 0, 0.1, 0, g);
+  box(0.57, 0.05, 0.91, color, 0, 0.4, 0, g, false);
+  box(0.4, 0.22, 0.3, C.crate, 0, 0.45, 0.22, g);
+  cyl(0.12, 0.14, 0.48, color, 0, 0.45, -0.22, g);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), mat(0xd9a37b)); head.position.set(0, 1.05, -0.22); head.castShadow = true; g.add(head);
+  const hat = new THREE.Mesh(new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(C.yellow)); hat.position.set(0, 1.09, -0.22); g.add(hat);
+  for (const [x, z] of [[-0.29, 0.3], [0.29, 0.3], [-0.29, -0.3], [0.29, -0.3]]) { const w = cyl(0.09, 0.09, 0.06, 0x232838, x, 0, z, g); w.rotation.z = Math.PI / 2; w.position.y = 0.12; }
+  g.position.y = 0.25; scene.add(g); return g;
+}
+const LANE_X = 13.3;
+const crews = [
+  { id: "T-01", name: "Maya Ruiz", initials: "MR", color: 0x2f5bea, css: "#2f5bea", home: { x: 14.6, z: 3.3 } },
+  { id: "T-02", name: "Dev Kapoor", initials: "DK", color: 0x1aa8a0, css: "#1aa8a0", home: { x: 14.6, z: -1.4 } },
+].map(c => { const g = makeCart(c.color); g.position.x = c.home.x; g.position.z = c.home.z; g.rotation.y = -Math.PI / 2; return Object.assign(c, { g, state: "idle", path: [], job: null, workT: 0, workDur: 0 }); });
+
+function walk(c, dt) {
+  if (!c.path.length) return true;
+  const p = c.path[0], pos = c.g.position;
+  const dx = p.x - pos.x, dz = p.z - pos.z, d = Math.hypot(dx, dz), s = 2.8 * dt;
+  if (d > 0.001) c.g.rotation.y = Math.atan2(dx, dz);
+  if (d <= s) { pos.x = p.x; pos.z = p.z; c.path.shift(); } else { pos.x += dx / d * s; pos.z += dz / d * s; }
+  return c.path.length === 0;
+}
+
+/* ---------------- pins & selection ---------------- */
+const SEV = { warn: 0xf2a31b, bad: 0xe2484e };
+function makePin(color) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.35 });
+  const sph = new THREE.Mesh(new THREE.SphereGeometry(0.42, 22, 16), m); sph.position.y = 1.0; sph.castShadow = true;
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.75, 22), m); cone.rotation.x = Math.PI; cone.position.y = 0.55; cone.castShadow = true;
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10), mat(0xffffff, { roughness: 0.4 }));
+  dot.position.set(0.24, 1.12, 0.24);
+  g.add(sph, cone, dot); g.userData.mat = m; g.userData.hit = [sph, cone, dot];
+  scene.add(g); return g;
+}
+const ringMat = new THREE.MeshBasicMaterial({ color: 0x2f5bea, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
+const selRing = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 40), ringMat);
+selRing.rotation.x = -Math.PI / 2; selRing.visible = false; scene.add(selRing);
+const hoverRing = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.72, 40), new THREE.MeshBasicMaterial({ color: 0x2f5bea, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+hoverRing.rotation.x = -Math.PI / 2; hoverRing.visible = false; scene.add(hoverRing);
+
+/* ---------------- game state ---------------- */
+const S = {
+  t: 0, clock: 9 * 60 + 40, budget: 360000, rep: 74, uptime: 99.982, pue: 1.29, load: 0,
+  incidents: [], incSeq: 1, order: null, orderSeq: 418, selected: null, tab: "alerts", nextIncident: 6, lastOrder: null,
+  revenueRate: 0, resolved: 0, breaches: 0,
+};
+const SPARES = {
+  gpu: { name: "GPU node, 8-way", icon: "chip", qty: 4, low: 2 },
+  psu: { name: "Power supply, 3 kW", icon: "plug", qty: 9, low: 4 },
+  fan: { name: "Fan module", icon: "fan", qty: 5, low: 4 },
+  optic: { name: "400G optic", icon: "link", qty: 2, low: 3 },
+};
+const INC = {
+  hot: { label: "Hot spot", sev: "warn", part: "fan", detail: () => `Inlet ${Math.round(rand(33, 37))}°C` },
+  psu: { label: "PSU failure", sev: "bad", part: "psu", detail: () => "Running on B feed only" },
+  node: { label: "GPU node down", sev: "bad", part: "gpu", detail: () => `Node ${1 + Math.floor(rand(0, 6))} not responding` },
+  link: { label: "Link flapping", sev: "warn", part: "optic", detail: () => "400G uplink to spine" },
+};
+const SLA = 45, ORDER_COST = 120000, RACK_RATE = 22; // $ per live rack per game minute
+const STAGES = [
+  { label: "Ordered", icon: "order" }, { label: "In transit", icon: "truck" },
+  { label: "Received", icon: "box" }, { label: "Racking", icon: "wrench" }, { label: "Live", icon: "check" },
+];
+const STAGE_EST = [2, 14, 4, 8]; // seconds between stages (1 s = 1 game minute)
+
+function toast(text, kind = "") {
+  const el = document.createElement("div");
+  el.className = "toast " + kind; el.innerHTML = `<i></i><span></span>`; el.lastChild.textContent = text;
+  const box = $("#toasts"); box.prepend(el);
+  while (box.children.length > 3) box.lastChild.remove();
+  setTimeout(() => el.remove(), 4200);
+}
+
+function liveRacks() { return racks.filter(r => r.status === "live"); }
+
+function spawnIncident(forceType) {
+  const open = S.incidents.length;
+  if (open >= 4) return;
+  const candidates = liveRacks().filter(r => !r.incident);
+  if (!candidates.length) return;
+  const rack = pick(candidates);
+  const key = forceType || pick(["hot", "hot", "psu", "node", "link"]);
+  const type = INC[key];
+  const inc = { id: "INC-" + String(S.incSeq++).padStart(3, "0"), key, type, rack, sev: type.sev, detail: type.detail(), t0: S.t, clock0: S.clock, state: "open", crew: null, breached: false };
+  inc.pin = makePin(SEV[inc.sev]); inc.pin.position.set(rack.x, 2.4, rack.z);
+  inc.pin.userData.hit.forEach(h => h.userData.incident = inc);
+  rack.incident = inc;
+  if (key === "hot") rack.inlet = rand(33, 37);
+  S.incidents.push(inc);
+  toast(`${rack.id}: ${type.label.toLowerCase()}. Click the pin to send a tech.`, inc.sev);
+}
+
+function dispatch(inc) {
+  if (!inc || inc.state !== "open") return;
+  const idle = crews.filter(c => c.state === "idle" || c.state === "return");
+  if (!idle.length) { inc.queued = true; toast(`Both crews are busy. ${inc.rack.id} is next in line.`); return; }
+  const c = idle.sort((a, b) => dist(a, inc.rack) - dist(b, inc.rack))[0];
+  assign(c, inc);
+}
+const dist = (c, r) => Math.abs(c.g.position.x - r.x) + Math.abs(c.g.position.z - r.aisle);
+function assign(c, inc) {
+  inc.state = "assigned"; inc.crew = c; inc.queued = false;
+  c.job = inc; c.state = "route";
+  const pos = c.g.position;
+  c.path = [{ x: LANE_X, z: pos.z }, { x: LANE_X, z: inc.rack.aisle }, { x: inc.rack.x, z: inc.rack.aisle }];
+  toast(`${c.name.split(" ")[0]} is heading to ${inc.rack.id}.`);
+}
+function resolve(inc) {
+  const r = inc.rack;
+  r.incident = null; r.inlet = rand(22, 25);
+  scene.remove(inc.pin);
+  S.incidents = S.incidents.filter(i => i !== inc);
+  S.rep = clamp(S.rep + (inc.breached ? 1 : 3), 0, 100);
+  S.resolved++;
+  toast(`${r.id} fixed. ${inc.usedSpare ? SPARES[inc.type.part].name + " swapped." : "Patched without a spare."}`, "good");
+}
+
+function placeOrder() {
+  if (S.order) return;
+  const dark = racks.filter(r => r.status === "dark");
+  if (dark.length < 4) { toast("Hall B is full. Every rack position is in use."); return; }
+  if (S.budget < ORDER_COST) { toast(`You need ${money(ORDER_COST)} for 4 racks. You have ${money(S.budget)}.`, "warn"); return; }
+  S.budget -= ORDER_COST;
+  S.order = { id: "DEP-" + S.orderSeq++, racks: dark.slice(0, 4), stage: 0, times: [S.clock], stageT: S.t };
+  toast(`${S.order.id} placed: 4 GPU racks for Row ${S.order.racks[0].row.n}.`);
+}
+function onTruckDocked() {
+  const o = S.order; if (!o || o.stage !== 1) return;
+  o.stage = 2; o.times[2] = S.clock; o.stageT = S.t;
+  dockCrates.visible = true;
+  SPARES.psu.qty += 2; SPARES.fan.qty += 2; SPARES.optic.qty += 3; SPARES.gpu.qty += 1;
+  toast(`${o.id} unloaded at bay 2. Spares restocked too.`, "good");
+}
+function tickOrder() {
+  const o = S.order; if (!o) return;
+  const since = S.t - o.stageT;
+  if (o.stage === 0 && since > STAGE_EST[0]) { o.stage = 1; o.times[1] = S.clock; o.stageT = S.t; truck.start(); }
+  else if (o.stage === 2 && since > STAGE_EST[2]) {
+    o.stage = 3; o.times[3] = S.clock; o.stageT = S.t;
+    dockCrates.visible = false; truck.phase = "out";
+    o.racks.forEach(r => setRackStatus(r, "install"));
+  } else if (o.stage === 3 && since > STAGE_EST[3]) {
+    o.stage = 4; o.times[4] = S.clock; o.stageT = S.t;
+    o.racks.forEach(r => setRackStatus(r, "live"));
+    S.rep = clamp(S.rep + 4, 0, 100);
+    toast(`${o.id} is live. 4 more racks earning.`, "good");
+  } else if (o.stage === 4 && since > 8) { S.lastOrder = o; S.order = null; }
+}
+
+/* ---------------- simulation step ---------------- */
+let ledClock = 0, ledTick = 0;
+function simulate(dt) {
+  S.t += dt; S.clock += dt;
+  // incidents
+  if (S.t > S.nextIncident) { spawnIncident(); S.nextIncident = S.t + rand(9, 16); }
+  for (const inc of S.incidents) {
+    if (!inc.breached && inc.state !== "repairing" && S.t - inc.t0 > SLA) {
+      inc.breached = true; inc.sev = "bad"; inc.pin.userData.mat.color.setHex(SEV.bad);
+      S.uptime = Math.max(99.5, S.uptime - 0.004); S.rep = clamp(S.rep - 6, 0, 100); S.breaches++;
+      toast(`SLA missed on ${inc.rack.id}. Uptime and reputation took a hit.`, "bad");
+    }
+  }
+  // crews
+  for (const c of crews) {
+    if (c.state === "route" && walk(c, dt)) {
+      const inc = c.job; c.state = "repair"; c.workT = 0;
+      const sp = SPARES[inc.type.part];
+      inc.usedSpare = sp.qty > 0; if (inc.usedSpare) sp.qty--;
+      c.workDur = inc.usedSpare ? 5 : 10; inc.state = "repairing";
+      c.g.rotation.y = inc.rack.row.f > 0 ? Math.PI : 0;
+    } else if (c.state === "repair") {
+      c.workT += dt;
+      if (c.workT >= c.workDur) {
+        resolve(c.job); c.job = null;
+        const next = S.incidents.filter(i => i.queued && i.state === "open").sort((a, b) => a.t0 - b.t0)[0];
+        if (next) assign(c, next);
+        else {
+          c.state = "return";
+          const z = c.g.position.z;
+          c.path = [{ x: LANE_X, z }, { x: LANE_X, z: c.home.z }, { x: c.home.x, z: c.home.z }];
+        }
+      }
+    } else if (c.state === "return" && walk(c, dt)) { c.state = "idle"; c.g.rotation.y = -Math.PI / 2; }
+  }
+  tickOrder();
+  truck.update(dt);
+  // economy & telemetry
+  let earning = 0, load = 0;
+  for (const r of racks) {
+    if (r.status !== "live") continue;
+    const k = r.incident?.key;
+    const f = k === "node" ? 0 : k === "psu" ? 0.5 : 1;
+    earning += f; load += r.kw * (k === "node" ? 0.85 : 1);
+  }
+  S.revenueRate = earning * RACK_RATE;
+  S.budget += S.revenueRate * dt;
+  S.load = load / 1000;
+  const hot = S.incidents.filter(i => i.key === "hot").length;
+  S.pue += ((1.27 + hot * 0.035 + Math.sin(S.t / 7) * 0.01) - S.pue) * Math.min(1, dt * 0.8);
+}
+
+function updateLeds(dt) {
+  ledClock += dt; if (ledClock < 0.14) return; ledClock = 0; ledTick++;
+  const col = new THREE.Color();
+  for (const r of racks) {
+    for (let k = 0; k < LEDS_PER; k++) {
+      let hex;
+      if (r.status === "dark") hex = 0x3a4262;
+      else if (r.status === "install") hex = (ledTick + k) % 4 === 0 ? 0x6f9bff : 0x24325e;
+      else if (r.incident) {
+        const bad = r.incident.sev === "bad";
+        const on = (ledTick + (k % 2)) % 2 === 0;
+        hex = k % 2 === 0 ? (on ? (bad ? 0xff4a4a : 0xffb020) : 0x3a1d22) : (bad ? 0xff6a5a : 0x35e39a);
+      } else {
+        hex = k % 2 === 0 ? (Math.random() < 0.08 ? 0x17573f : 0x35e39a) : (Math.random() < 0.3 ? 0x1d2e66 : 0x6f9bff);
+      }
+      leds.setColorAt(r.ledStart + k, col.setHex(hex));
+    }
+  }
+  leds.instanceColor.needsUpdate = true;
+}
+
+/* ---------------- interaction ---------------- */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+const rackMeshes = racks.map(r => r.mesh);
+function hit(e) {
+  const b = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - b.left) / b.width) * 2 - 1, -((e.clientY - b.top) / b.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const pins = S.incidents.flatMap(i => i.pin.userData.hit);
+  const h = ray.intersectObjects([...pins, ...rackMeshes], false)[0];
+  if (!h) return null;
+  if (h.object.userData.incident) return { incident: h.object.userData.incident, rack: h.object.userData.incident.rack };
+  return { rack: h.object.userData.rack };
+}
+const tip = $("#tip");
+canvas.addEventListener("pointermove", e => {
+  if (e.buttons) { tip.hidden = true; return; }
+  const h = hit(e);
+  canvas.classList.toggle("pointing", !!h);
+  if (!h) { tip.hidden = true; hoverRing.visible = false; return; }
+  const r = h.rack, inc = r.incident;
+  hoverRing.visible = true; hoverRing.position.set(r.x, 0.27, r.z);
+  tip.innerHTML = `<b>${r.id}</b> <span style="color:var(--muted)">· Hall B, row ${r.row.n}</span>
+    <div class="row"><span>Status</span><span>${rackStatusLabel(r)}</span></div>
+    ${r.status === "live" ? `<div class="row"><span>Inlet</span><span>${r.inlet.toFixed(1)}°C</span></div><div class="row"><span>Draw</span><span>${r.kw.toFixed(1)} kW</span></div>` : ""}
+    ${inc ? `<div class="hint">${inc.state === "open" ? "Click to send a tech" : inc.crew ? inc.crew.name.split(" ")[0] + " is on it" : ""}</div>` : ""}`;
+  const b = wrap.getBoundingClientRect();
+  let x = e.clientX - b.left + 14, y = e.clientY - b.top + 14;
+  if (x + 190 > b.width) x -= 210;
+  if (y + 120 > b.height) y -= 130;
+  tip.style.left = x + "px"; tip.style.top = y + "px"; tip.hidden = false;
+});
+canvas.addEventListener("pointerleave", () => { tip.hidden = true; hoverRing.visible = false; });
+let downAt = null;
+canvas.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener("pointerup", e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6) return;
+  const h = hit(e);
+  if (!h) { select(null); return; }
+  select(h.rack);
+  if (h.rack.incident && h.rack.incident.state === "open") dispatch(h.rack.incident);
+});
+function select(r) { S.selected = r; selRing.visible = !!r; if (r) selRing.position.set(r.x, 0.28, r.z); renderUI(true); }
+function rackStatusLabel(r) {
+  if (r.status === "dark") return "Empty slot";
+  if (r.status === "install") return "Racking";
+  if (r.incident) return r.incident.type.label;
+  return "Healthy";
+}
+
+// camera helpers
+let camAnim = null;
+function flyTo(x, z, zoom) {
+  camAnim = { t: 0, from: controls.target.clone(), to: new THREE.Vector3(x, 0, z), z0: camera.zoom, z1: zoom ?? camera.zoom, offset: camera.position.clone().sub(controls.target) };
+}
+function rotateView(a) {
+  const off = camera.position.clone().sub(controls.target);
+  off.applyAxisAngle(new THREE.Vector3(0, 1, 0), a);
+  camera.position.copy(controls.target).add(off); controls.update();
+}
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const a = el.dataset.act;
+  if (a === "zoomin") { camera.zoom = clamp(camera.zoom * 1.25, controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); }
+  else if (a === "zoomout") { camera.zoom = clamp(camera.zoom / 1.25, controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); }
+  else if (a === "rotl") rotateView(Math.PI / 4);
+  else if (a === "rotr") rotateView(-Math.PI / 4);
+  else if (a === "home") { controls.reset(); select(null); }
+  else if (a === "order") placeOrder();
+  else if (a === "tab") { S.tab = el.dataset.tab; renderUI(true); }
+  else if (a === "alerts") { S.tab = "alerts"; renderUI(true); }
+  else if (a === "dispatch") { const inc = S.incidents.find(i => i.id === el.dataset.id); dispatch(inc); renderUI(true); }
+  else if (a === "focus") { const r = rackById(el.dataset.rack); if (r) { select(r); flyTo(r.x, r.z, 2.1); } }
+  else if (a === "crew") { const c = crews.find(c => c.id === el.dataset.id); if (c) flyTo(c.g.position.x, c.g.position.z, 2.1); }
+  renderUI(true);
+});
+
+const search = $("#search");
+document.addEventListener("keydown", e => {
+  if (e.key === "/" && document.activeElement !== search) { e.preventDefault(); search.focus(); }
+  if (e.key === "Escape") { select(null); search.blur(); }
+});
+search.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const q = search.value.trim().toUpperCase().replace(/^B[-\s]?/, "").replace(/\s/g, "");
+  if (!q) return;
+  const norm = /^[A-D]\d$/.test(q) ? q[0] + "0" + q[1] : q;
+  const r = rackById(norm);
+  if (r) { select(r); flyTo(r.x, r.z, 2.2); search.blur(); return; }
+  if (/TRUCK|DEP|DELIVER/.test(q)) { const p = truck.g.visible ? truck.g.position : new THREE.Vector3(DOCK_X, 0, DOCK_Z); flyTo(p.x, p.z, 1.6); return; }
+  const c = crews.find(c => c.id.replace("-", "") === q.replace("-", "") || c.name.toUpperCase().startsWith(q));
+  if (c) { flyTo(c.g.position.x, c.g.position.z, 2.1); return; }
+  if (/CHILL|COOL/.test(q)) { flyTo(23.5, -4.5, 1.6); return; }
+  if (/GEN|POWER|SUB/.test(q)) { flyTo(-20.5, 1.2, 1.6); return; }
+  toast(`No match for "${search.value}". Try a rack like D03, a crew like T-01, or "truck".`);
+});
+
+/* ---------------- UI rendering ---------------- */
+function setHTML(el, html) { if (el._h !== html) { el._h = html; el.innerHTML = html; } }
+const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
+const bar = (pct, cls = "") => `<div class="bar ${cls}"><i style="width:${clamp(pct, 0, 100).toFixed(0)}%"></i></div>`;
+let uiClock = 0;
+function renderUI(force) {
+  const live = liveRacks().length, total = racks.length, open = S.incidents.length;
+  const busy = crews.filter(c => c.state !== "idle").length;
+  $("#clock").textContent = hhmm(S.clock);
+  $("#siteSub").textContent = `${Math.round(live / total * 100)}% full · ${busy}/2 crews busy`;
+  const badge = $("#bellBadge"); badge.hidden = !open; badge.textContent = open;
+
+  setHTML($("#kpis"), [
+    kpi("bolt", "IT load", S.load.toFixed(2), "MW", `of 2.00 MW utility feed`, null),
+    kpi("gauge", "PUE", S.pue.toFixed(2), "", "facility ÷ IT power", S.pue > 1.33 ? ["↑ cooling strain", true] : ["on target", false]),
+    kpi("shield", "Uptime", S.uptime.toFixed(3) + "%", "", "last 30 days", S.breaches ? [`${S.breaches} SLA miss${S.breaches > 1 ? "es" : ""}`, true] : null),
+    kpi("wallet", "Budget", money(S.budget), "", `+${money(S.revenueRate * 60)} per hour`, null),
+  ].join(""));
+
+  const degraded = S.incidents.some(i => i.sev === "bad");
+  setHTML($("#statusLine"), `${chip(degraded ? "bad" : open ? "warn" : "good", degraded ? "Degraded" : open ? "Attention" : "Operational")}
+    <span>${live} racks live · ${open} open alert${open === 1 ? "" : "s"} · ${S.resolved} fixed today</span>`);
+  const repCls = S.rep > 60 ? "good" : S.rep > 35 ? "warn" : "bad";
+  setHTML($("#tiles"), `
+    <div class="tile"><label>Racks live</label><div class="v">${live} <small>/ ${total}</small></div>${bar(live / total * 100)}</div>
+    <div class="tile"><label>Power draw</label><div class="v">${S.load.toFixed(2)} <small>/ 2.00 MW</small></div>${bar(S.load / 2 * 100, S.load > 1.7 ? "warn" : "")}</div>
+    <div class="tile"><label>Chillers</label><div class="v">6 <small>/ 6 running</small></div>${bar(55 + (S.pue - 1.25) * 300, S.pue > 1.33 ? "warn" : "good")}</div>
+    <div class="tile"><label>Reputation</label><div class="v">${Math.round(S.rep)} <small>/ 100</small></div>${bar(S.rep, repCls)}</div>`);
+
+  const r = S.selected;
+  setHTML($("#rackCard"), r ? `<div class="selected-rack">
+      <div class="top"><div><div class="eyebrow">Hall B · Row ${r.row.n}</div><b>${r.id}</b></div>${rackChip(r)}</div>
+      ${r.status === "live" ? `<div class="kv"><div><label>Inlet</label><span>${r.inlet.toFixed(1)}°C</span></div><div><label>Draw</label><span>${r.kw.toFixed(1)} kW</span></div><div><label>Nodes</label><span>${r.incident?.key === "node" ? "5/6" : "6/6"}</span></div></div>` : `<p style="margin:0;color:var(--muted);font-size:11.5px">${r.status === "dark" ? "Empty position. Order racks below to fill it." : "Crew is mounting and cabling this rack."}</p>`}
+      ${r.incident ? (r.incident.state === "open" ? `<button class="btn primary" data-act="dispatch" data-id="${r.incident.id}">${ICON.wrench} Send a technician</button>` : `<p style="margin:0;font-size:11.5px;color:var(--muted)">${r.incident.crew.name} (${r.incident.crew.id}) is ${r.incident.state === "repairing" ? "repairing it" : "on the way"}.</p>`) : ""}
+    </div>` : "");
+
+  setHTML($("#spares"), Object.values(SPARES).map(s => {
+    const st = s.qty === 0 ? chip("bad", "Out") : s.qty < s.low ? chip("warn", "Low stock") : chip("good", "In stock");
+    return `<div class="li"><span class="part-ico">${ICON[s.icon]}</span><span class="grow">${s.name}</span><span class="qty">${s.qty}</span><span style="width:74px;text-align:right">${st}</span></div>`;
+  }).join(""));
+
+  renderDeploy();
+  renderOps();
+}
+function kpi(icon, label, val, unit, sub, delta) {
+  return `<div class="kpi panel"><div class="ico">${ICON[icon]}</div><div><label>${label}</label>
+    <div class="val">${val}${unit ? ` <small>${unit}</small>` : ""}${delta ? ` <span class="delta ${delta[1] ? "down" : ""}">${delta[0]}</span>` : ""}</div>
+    <div class="sub">${sub}</div></div></div>`;
+}
+function rackChip(r) {
+  if (r.status === "dark") return chip("idle", "Empty");
+  if (r.status === "install") return chip("info", "Racking");
+  if (r.incident) return chip(r.incident.sev, r.incident.type.label);
+  return chip("good", "Healthy");
+}
+function renderDeploy() {
+  const o = S.order || S.lastOrder;
+  const dark = racks.filter(r => r.status === "dark").length;
+  let nodes, head, card;
+  if (o) {
+    let t = o.times[o.stage];
+    nodes = STAGES.map((s, i) => {
+      const cls = i < o.stage || o.stage === 4 ? "done" : i === o.stage ? "now" : "";
+      if (i > o.stage) t += STAGE_EST[i - 1];
+      const when = o.times[i] != null ? hhmm(o.times[i]) : "ETA " + hhmm(t);
+      return `<div class="stage-node ${cls}"><div class="dot">${ICON[s.icon]}</div><b>${s.label}</b><small>${when}</small></div>`;
+    }).join("");
+    head = `<b>${ICON.truck} Rack deployment</b><span class="mono">${o.id} · DCB Logistics</span>`;
+    const stageChip = o.stage === 4 ? chip("good", "Live") : chip("info", STAGES[o.stage].label);
+    card = `<div class="oid">#${o.id}</div><p>4 × GPU racks → Hall B, Row ${o.racks[0].row.n}</p><div>${stageChip}</div>`;
+  } else {
+    nodes = STAGES.map(s => `<div class="stage-node"><div class="dot">${ICON[s.icon]}</div><b>${s.label}</b><small>–</small></div>`).join("");
+    head = `<b>${ICON.truck} Rack deployment</b><span>No delivery in progress</span>`;
+    card = `<div class="oid">Next order</div><p>${dark ? `4 × GPU racks for ${dark} empty positions in Hall B. Each live rack earns ${money(RACK_RATE * 60)} per hour.` : "Hall B is full. Every position is earning."}</p>`;
+  }
+  const can = !S.order && dark >= 4;
+  const label = S.order ? "Delivery in progress" : dark < 4 ? "Hall B is full" : `Order 4 racks · ${money(ORDER_COST)}`;
+  card += `<button class="btn ${can && S.budget >= ORDER_COST ? "primary" : "ghost"}" data-act="order" ${can ? "" : "disabled"}>${label}</button>`;
+  setHTML($("#deploy"), `<div class="track"><div class="track-head">${head}</div><div class="stages">${nodes}</div></div><div class="order-card">${card}</div>`);
+}
+function renderOps() {
+  const open = S.incidents.length;
+  const busy = crews.filter(c => c.state !== "idle").length;
+  const tabs = [["alerts", "Alerts", open], ["rows", "Rows", ROWS.length], ["crew", "Crews", busy + "/2"]];
+  setHTML($("#tabs"), tabs.map(([k, l, n]) => `<button class="tab ${k === "alerts" && open ? "alert" : ""}" role="tab" aria-selected="${S.tab === k}" data-act="tab" data-tab="${k}">${l}<em>${n}</em></button>`).join("") + `<span class="spacer"></span><span>Hall B</span>`);
+  let html = "";
+  if (S.tab === "alerts") {
+    html = open ? S.incidents.slice().sort((a, b) => (b.sev === "bad") - (a.sev === "bad") || a.t0 - b.t0).map(i => {
+      const action = i.state === "open"
+        ? (i.queued ? chip("idle", "Queued") : `<button class="btn primary sm" data-act="dispatch" data-id="${i.id}">Send tech</button>`)
+        : chip("info", i.state === "repairing" ? `${i.crew.id} fixing` : `${i.crew.id} en route`);
+      return `<div class="li"><span class="id" style="cursor:pointer" data-act="focus" data-rack="${i.rack.id}">${i.rack.id}</span>
+        <span class="grow"><b style="color:${i.sev === "bad" ? "var(--bad)" : "var(--warn)"}">${i.type.label}</b><span class="sub">${i.detail} · ${i.breached ? "SLA missed" : "fix by " + hhmm(i.clock0 + SLA)}</span></span>${action}</div>`;
+    }).join("") : `<div class="empty">No open alerts. Every rack is healthy.</div>`;
+  } else if (S.tab === "rows") {
+    html = ROWS.map(r => {
+      const rs = racks.filter(x => x.row === r), lv = rs.filter(x => x.status === "live").length, inst = rs.filter(x => x.status === "install").length;
+      const st = inst ? chip("info", "Racking") : lv === rs.length ? chip("good", "Full") : lv ? chip("warn", "Partial") : chip("idle", "Empty");
+      return `<div class="li"><span class="id">Row ${r.n}</span><span class="grow">${lv}/${rs.length} live<span class="sub">${rs.filter(x => x.incident).length} alert${rs.filter(x => x.incident).length === 1 ? "" : "s"}</span></span><span class="mini-bar">${bar(lv / rs.length * 100)}</span>${st}</div>`;
+    }).join("");
+  } else {
+    html = crews.map(c => {
+      const label = { idle: "Idle at base", route: `Driving to ${c.job?.rack.id}`, repair: `Repairing ${c.job?.rack.id}`, return: "Returning to base" }[c.state];
+      const pct = c.state === "repair" ? Math.round(c.workT / c.workDur * 10) * 10 : 0;
+      const st = c.state === "idle" ? chip("good", "Available") : c.state === "repair" ? chip("warn", "Working") : chip("info", "Moving");
+      return `<div class="li" style="cursor:pointer" data-act="crew" data-id="${c.id}"><span class="crew-av" style="background:${c.css}">${c.initials}</span><span class="grow"><b>${c.name}</b> <span class="mono" style="color:var(--muted)">${c.id}</span><span class="sub">${label}</span></span>${c.state === "repair" ? `<span class="mini-bar">${bar(pct, "warn")}</span>` : ""}${st}</div>`;
+    }).join("");
+  }
+  setHTML($("#opsBody"), html);
+}
+
+/* ---------------- loop ---------------- */
+// open on a working morning: one delivery already rolling and one alert waiting
+placeOrder();
+S.order.stage = 1; S.order.times[1] = S.clock; S.order.times[0] = S.clock - 6; truck.start(-46);
+S.budget = 360000;
+spawnIncident("hot");
+S.nextIncident = 10;
+
+const clockT = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clockT.getDelta(), 0.1);
+  simulate(dt);
+  updateLeds(dt);
+  if (!REDUCED) fans.forEach((f, i) => f.rotation.y += dt * (5 + (i % 3)));
+  const now = performance.now() / 1000;
+  for (const inc of S.incidents) {
+    const s = 1.3 + (inc.state === "open" && !REDUCED ? Math.sin(now * 5) * 0.06 : 0);
+    inc.pin.position.y = 2.4 + (REDUCED ? 0 : Math.sin(now * 2.4 + inc.rack.x) * 0.15);
+    inc.pin.scale.setScalar(s);
+  }
+  if (camAnim) {
+    camAnim.t = Math.min(1, camAnim.t + dt / 0.7);
+    const k = ease(camAnim.t);
+    controls.target.lerpVectors(camAnim.from, camAnim.to, k);
+    camera.position.copy(controls.target).add(camAnim.offset);
+    camera.zoom = camAnim.z0 + (camAnim.z1 - camAnim.z0) * k; camera.updateProjectionMatrix();
+    if (camAnim.t >= 1) camAnim = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  uiClock += dt;
+  if (uiClock > 0.25) { uiClock = 0; renderUI(); }
+  requestAnimationFrame(frame);
+}
+renderUI(true);
+requestAnimationFrame(frame);
+})();
+</script>
