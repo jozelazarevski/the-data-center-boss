@@ -31,6 +31,7 @@
   --r: 14px;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
@@ -251,6 +252,18 @@ svg { display: block; flex: none; }
 .choice .con { color: var(--bad); font-weight: 600; }
 .choice .btn { margin-top: auto; }
 
+/* ---------- quiz ---------- */
+.quiz { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.qopts { display: flex; flex-wrap: wrap; gap: 6px; }
+.qopt { border: 1px solid var(--line); background: var(--panel-solid); border-radius: 9px; padding: 7px 11px; font-weight: 600; font-size: 12.5px; text-align: left; }
+.qopt:hover:not(:disabled) { border-color: var(--accent); }
+.qopt:disabled { cursor: default; }
+.qopt.right { background: var(--good-wash); border-color: var(--good); color: var(--good); }
+.qopt.wrong { background: var(--bad-wash); border-color: var(--bad); color: var(--bad); }
+.qopt.dim { color: var(--faint); }
+.qwhy { margin: 0; font-size: 12.5px; }
+.qwhy.right { color: var(--good); } .qwhy.wrong { color: var(--bad); }
+
 /* ---------- responsive ---------- */
 @media (max-width: 1180px) {
   .side { width: 320px; }
@@ -274,9 +287,10 @@ svg { display: block; flex: none; }
   .mapctl { top: auto; bottom: 12px; right: 12px; flex-direction: row; }
   .mapctl hr { border-top: 0; border-left: 1px solid var(--line); margin: 4px 3px; }
   .side, .build, .lesson { position: static; width: auto; max-height: none; }
-  .side { order: 3; }
-  .build { order: 1; }
+  .side { order: 1; }
   .lesson { order: 2; }
+  .build { order: 3; }
+  .side-body { max-height: none; }
   .side-body { overflow: visible; }
   .toasts { top: 64px; transform: translateX(-50%); }
 }
@@ -1366,6 +1380,7 @@ function build(k) {
   if (S.level >= 2 && cost >= 20000) truck.start();
   renderAll();
   checkLevel();
+  save();
 }
 
 function startProc(k) {
@@ -1450,7 +1465,69 @@ function checkLevel() {
     <p class="lead">${last ? "You've grown a server closet into a megawatt AI campus. Real operators take the same path, one constraint at a time." : `Next up: <b>${next.name}</b> (${next.tier}).`}</p>
     <div class="concept lesson-body"><h4>What you learned</h4><ul class="learned">${L.learned.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
     ${last ? "" : `<p class="lead">Investors add <b>${money(next.grant)}</b> to your budget.</p>`}
-    <div class="foot">${last ? `<button class="btn primary lg" data-act="sandbox">Keep running the campus</button>` : `<button class="btn primary lg" data-act="nextLevel">Start level ${next.n}: ${next.name}</button>`}</div>`), 500);
+    <div class="foot"><button class="btn ghost lg" data-act="${last ? "sandbox" : "nextLevel"}">Skip the check</button><button class="btn primary lg" data-act="quiz">Take the 3-question check · up to ${money(QUIZ[S.level].bonus * 3)}</button></div>`), 500);
+}
+
+/* ---------- knowledge check after each level ---------- */
+const QUIZ = [
+  { bonus: 10000, qs: [
+    { q: "What is usually a data center's biggest operating cost?", a: ["Rent", "Electricity", "Staff", "Internet transit"], c: 1, why: "Servers and cooling run 24/7, so the power bill dwarfs most other running costs. That's why location and PUE matter so much." },
+    { q: "Why get a utility capacity letter before buying land?", a: ["The permit office requires it", "It tells you if and when the grid can power the site", "It lowers your power price"], c: 1, why: "In busy markets the grid, not land, is the bottleneck. A great parcel without power can sit idle for years." },
+    { q: "Why does a Nordic site like Luleå cut cooling costs?", a: ["Chillers are cheaper there", "Cold outside air allows free cooling most of the year", "Servers use less power in the cold"], c: 1, why: "When outside air or water is cold enough, the plant can skip its compressors. That's free cooling." },
+  ] },
+  { bonus: 5000, qs: [
+    { q: "A rack draws 6 kW. About how much heat does it give off?", a: ["About 1 kW", "About 6 kW", "About 12 kW"], c: 1, why: "Nearly every watt of electricity a server uses turns into heat, so cooling has to match the IT load." },
+    { q: "What does a UPS do when the grid blips?", a: ["Starts the generator and waits", "Carries the load from batteries with no interruption", "Shuts servers down safely"], c: 1, why: "An online UPS feeds servers from its inverter all the time, so a dip on the grid side never reaches them." },
+    { q: "What's the right build order?", a: ["Racks, then cooling, then power", "Power, cooling, network, then protection", "Network, then racks, then power"], c: 1, why: "Racks need power to run, cooling for the heat they make, and a network to earn. Protection (UPS) comes before you trust them with customers." },
+  ] },
+  { bonus: 20000, qs: [
+    { q: "You need 2 CRAC units to carry the heat. How many is N+1?", a: ["2", "3", "4"], c: 1, why: "N is what you need (2). N+1 adds one spare (3), so any one unit can fail or be serviced." },
+    { q: "You have a generator. Why do you still need a UPS?", a: ["The generator takes about 10 seconds to start", "The UPS burns less fuel", "Generators can't power servers"], c: 0, why: "Servers can't survive even a second without power. The UPS bridges the gap until the generator is up and the ATS switches over." },
+    { q: "Which commissioning level is the vendor starting each unit on its own?", a: ["L1", "L3", "L5"], c: 1, why: "L1 is factory testing, L2 installation checks, L3 start-up of each unit, L4 functional system tests, L5 the integrated systems test." },
+  ] },
+  { bonus: 40000, qs: [
+    { q: "What does Tier III mean?", a: ["Fault tolerant: 2N everything", "Concurrently maintainable: any part can be serviced without downtime", "Basic capacity with no redundancy"], c: 1, why: "Tier III needs N+1 and redundant paths so maintenance never takes the load down. Tier IV adds full fault tolerance." },
+    { q: "Which Johnson Controls brand makes chillers?", a: ["Simplex", "YORK", "Software House"], c: 1, why: "YORK is JCI's HVAC and chiller brand (for example YVAA and YZ). Simplex is fire alarm; Software House makes C•CURE access control." },
+    { q: "What happens in an L5 integrated systems test?", a: ["Equipment is inspected on delivery", "Load banks run full load while the team cuts utility power and fails parts on purpose", "The slab is load-tested"], c: 1, why: "The IST proves all systems work together through real failures before customers move in." },
+  ] },
+  { bonus: 100000, qs: [
+    { q: "Why do GPU racks need liquid cooling?", a: ["Air can't remove 40+ kW from one rack", "Liquid cooling is cheaper than air", "GPUs need humid air"], c: 0, why: "Air runs out of capacity around 30–40 kW per rack. Water carries thousands of times more heat per volume." },
+    { q: "Which of these is NOT typically a Johnson Controls product?", a: ["YORK chiller", "Metasys BMS", "Diesel generator"], c: 2, why: "JCI covers cooling plant, controls, fire and security. Generators come from vendors like Caterpillar, Cummins and Rolls-Royce (mtu)." },
+    { q: "Your PUE is 1.3. What does that mean?", a: ["30% of servers are idle", "For every 1 kW of IT, the site draws 1.3 kW in total", "Each rack needs 1.3 kW of cooling"], c: 1, why: "PUE = facility power ÷ IT power. The extra 0.3 kW goes to cooling, power losses and lighting." },
+  ] },
+];
+function showQuiz() {
+  const Q = QUIZ[S.level], ans = S.quizAns || (S.quizAns = []);
+  const answered = ans.filter(x => x != null).length, right = Q.qs.filter((q, i) => ans[i] === q.c).length;
+  const last = S.level === LEVELS.length - 1;
+  showModal(`
+    <div class="eyebrow">Knowledge check · ${LEVELS[S.level].name}</div>
+    <h2>${answered < 3 ? "Three quick questions" : `${right} of 3 right`}</h2>
+    <p class="lead">${answered < 3 ? `Each right answer adds ${money(Q.bonus)} to your budget.` : right ? `You earned ${money(right * Q.bonus)}.` : "No bonus this time, but now you know."}</p>
+    ${Q.qs.map((q, i) => `<div class="quiz"><b>${i + 1}. ${esc(q.q)}</b><div class="qopts">${q.a.map((a, j) => {
+      const st = ans[i] == null ? "" : j === q.c ? "right" : j === ans[i] ? "wrong" : "dim";
+      return `<button class="qopt ${st}" data-act="qa" data-q="${i}" data-i="${j}" ${ans[i] != null ? "disabled" : ""}>${esc(a)}</button>`;
+    }).join("")}</div>${ans[i] != null ? `<p class="qwhy ${ans[i] === q.c ? "right" : "wrong"}">${ans[i] === q.c ? "Right. " : "Not quite. "}${esc(q.why)}</p>` : ""}</div>`).join("")}
+    <div class="foot"><button class="btn primary lg" data-act="quizDone">${answered < 3 ? "Skip the rest" : last ? "Collect and finish" : `Collect and start level ${S.level + 1}`}</button></div>`);
+}
+function answerQuiz(q, i) {
+  const ans = S.quizAns || (S.quizAns = []);
+  if (ans[q] != null) return;
+  ans[q] = i;
+  showQuiz();
+}
+function finishQuiz() {
+  const Q = QUIZ[S.level], ans = S.quizAns || [];
+  S.quiz = S.quiz || {};
+  if (!S.quiz[S.level]) {
+    const right = Q.qs.filter((q, i) => ans[i] === q.c).length;
+    S.quiz[S.level] = `${right}/3`;
+    if (right) { S.budget += right * Q.bonus; toast(`Knowledge check: +${money(right * Q.bonus)}.`, "good"); }
+  }
+  S.quizAns = null;
+  closeModal();
+  if (S.level === LEVELS.length - 1) { S.completed = true; flyTo(2, -2, 0.85); } else startLevel(S.level + 1);
+  save();
 }
 function startLevel(lv) {
   S.level = lv;
@@ -1675,12 +1752,14 @@ function selectItem(k) {
   S.selected = k;
   if (S.cat !== "All" && ITEMS[k] && !catMatch(k, S.cat)) S.cat = "All";
   renderAll();
-  document.querySelector(`.bcard[data-k="${k}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: REDUCED ? "auto" : "smooth" });
+  if (innerWidth <= 900) revealLesson();
+  else document.querySelector(`.bcard[data-k="${k}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: REDUCED ? "auto" : "smooth" });
 }
 function selectProc(k) {
   if (PROCS[k].modal && !procBlocker(k)) { startProc(k); return; }
-  S.selected = "proc:" + k; renderAll();
+  S.selected = "proc:" + k; renderAll(); revealLesson();
 }
+function revealLesson() { if (innerWidth <= 900) $("#lesson").scrollIntoView({ block: "start", behavior: REDUCED ? "auto" : "smooth" }); }
 const catMatch = (k, cat) => cat === "All" || (cat === "JCI" ? ITEMS[k].jci !== "no" : ITEMS[k].cat === cat);
 
 document.addEventListener("click", e => {
@@ -1706,7 +1785,12 @@ document.addEventListener("click", e => {
   else if (a === "closeModal") closeModal();
   else if (a === "showItem") { closeModal(); selectItem(k); }
   else if (a === "nextLevel") { closeModal(); startLevel(S.level + 1); }
-  else if (a === "sandbox") { closeModal(); S.completed = true; flyTo(2, -2, 0.85); }
+  else if (a === "sandbox") { closeModal(); S.completed = true; flyTo(2, -2, 0.85); save(); }
+  else if (a === "quiz") { S.quizAns = []; showQuiz(); }
+  else if (a === "qa") answerQuiz(+el.dataset.q, +el.dataset.i);
+  else if (a === "quizDone") finishQuiz();
+  else if (a === "resume") closeModal();
+  else if (a === "reset") { if (S.confirmReset) { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); return; } S.confirmReset = true; setTimeout(() => { S.confirmReset = false; renderAll(); }, 4000); }
   else if (a === "hintGo") { const h = nextHint(); if (h?.kind === "item") selectItem(h.key); else if (h?.kind === "proc") selectProc(h.key); else if (h?.kind === "drill") runDrill(h.key); }
   renderAll();
 });
@@ -1893,6 +1977,7 @@ function renderSide(c, L, hint, open) {
       return `<details class="hb"><summary><span class="part-ico">${ICON[x.icon]}</span><span>${x.name}</span>${ITEMS[k] ? brandTag(k) : ""}<small>${kind}</small></summary>${lessonBody(x)}${extra}</details>`;
     }).join("")}</div>`;
     side += `<p class="note">Figures are illustrative and simplified for play. Product names are used for education; this game is not affiliated with Johnson Controls or any other vendor.</p>`;
+    side += `<div class="drill"><span class="grow"><b>Progress</b><small>Saved automatically in this browser.${S.quiz ? " Checks: " + Object.entries(S.quiz).map(([l, r]) => `L${l} ${r}`).join(", ") : ""}</small></span><button class="btn ghost sm" data-act="reset">${S.confirmReset ? "Click again to erase" : "Start over"}</button></div>`;
   } else {
     if (S.level < 2) side += `<div class="empty">Alerts start at level 2, when technicians join your site.</div>`;
     else {
@@ -1939,7 +2024,42 @@ function frame() {
   if (uiClock > 0.3) { uiClock = 0; renderAll(); }
   requestAnimationFrame(frame);
 }
-startLevel(0);
+/* ---------- save and resume (this browser only) ---------- */
+const SAVE_KEY = "dcb-save-v1";
+const SAVE_FIELDS = ["level", "budget", "clock", "built", "picks", "choice", "passed", "failed", "learned", "tasks", "site", "building", "uptime", "completed", "quiz"];
+function save() {
+  try {
+    const d = { racks: racks.filter(r => r.built).map(r => r.id) };
+    SAVE_FIELDS.forEach(k => d[k] = S[k]);
+    localStorage.setItem(SAVE_KEY, JSON.stringify(d));
+  } catch (e) { /* storage unavailable: play continues unsaved */ }
+}
+function loadSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) { return null; } }
+function restore(d) {
+  SAVE_FIELDS.forEach(k => { if (d[k] !== undefined) S[k] = d[k]; });
+  for (const k in S.built) if (SLOTS[k]) for (let i = 0; i < S.built[k] && i < SLOTS[k].length; i++) SLOTS[k][i].visible = true;
+  (d.racks || []).forEach(id => { const r = rackById(id); if (r) { r.built = true; r.mesh.visible = true; showRackLeds(r); } });
+  if (n("gen")) { genPad.visible = true; fuelTank.visible = true; }
+  if (n("chiller")) chillerPad.visible = true;
+  if (S.building) { hallB.visible = true; lot.visible = false; hangarExtras.visible = S.building === "hangar"; warehouseExtras.visible = S.building === "warehouse"; }
+  if (S.level >= 2) crews.forEach(c => c.g.visible = true);
+  const cam = S.completed ? { x: 2, z: -2, zoom: 0.85 } : LEVELS[S.level].camera;
+  controls.target.set(cam.x, 0, cam.z); camera.position.set(cam.x, 0, cam.z).add(CAM_OFFSET); camera.zoom = cam.zoom; camera.updateProjectionMatrix(); controls.update();
+  S.nextIncident = S.t + 30;
+  invalidate();
+}
+const rackById = id => racks.find(r => r.id === id);
+const saved = loadSave();
+if (saved && saved.site) {
+  restore(saved);
+  renderAll();
+  showModal(`
+    <div class="eyebrow">Welcome back</div>
+    <h2>${S.completed ? "Your campus is still running" : `Level ${S.level}: ${LEVELS[S.level].name}`}</h2>
+    <p class="lead">Your game was saved in this browser: ${esc(site().name)}${S.building ? ", " + esc(bld().name.toLowerCase()) : ""}, ${money(S.budget)} in the bank.</p>
+    <div class="foot"><button class="btn ghost lg" data-act="reset">Start over</button><button class="btn primary lg" data-act="resume">Continue</button></div>`);
+} else startLevel(0);
+setInterval(save, 5000);
 requestAnimationFrame(frame);
 })();
 </script>
