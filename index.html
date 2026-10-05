@@ -193,7 +193,7 @@ svg { display: block; flex: none; }
 .bcard b { font-size: 12.5px; line-height: 1.25; }
 .bcard small { color: var(--muted); font-size: 11px; }
 .bcard .cost { font-weight: 800; font-size: 12px; }
-.bcard .st { font-size: 10.5px; font-weight: 700; }
+.bcard .st { font-size: 10.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .bcard .st.ok { color: var(--good); } .bcard .st.no { color: var(--warn); } .bcard .st.lock { color: var(--faint); }
 .bcard.locked { background: var(--wash); }
 .bcard.locked b, .bcard.locked .cost { color: var(--faint); }
@@ -220,8 +220,8 @@ svg { display: block; flex: none; }
 .learned li { margin: 3px 0; }
 
 /* ---------- brands, options, choices ---------- */
-.brand { display: inline-flex; align-items: center; border-radius: 5px; padding: 1px 6px; font-size: 10px; font-weight: 800; letter-spacing: .03em; background: var(--wash); color: var(--muted); white-space: nowrap; vertical-align: middle; }
-.brand.jci { background: #e3f1ff; color: #0b5cad; }
+.vtag { display: inline-flex; align-items: center; border-radius: 5px; padding: 1px 6px; font-size: 10px; font-weight: 800; letter-spacing: .03em; background: var(--wash); color: var(--muted); white-space: nowrap; vertical-align: middle; }
+.vtag.jci { background: #e3f1ff; color: #0b5cad; }
 .bcard .row2 { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 2px; }
 .cat.jcicat { color: #0b5cad; }
 .cat.jcicat[aria-pressed="true"] { background: #0b5cad; color: #fff; }
@@ -237,7 +237,7 @@ svg { display: block; flex: none; }
 .obj .bar, .lesson .bar { margin-top: 5px; }
 .bar { height: 5px; border-radius: 3px; background: #dfe4f0; overflow: hidden; }
 .bar > i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--accent); transition: width .3s linear; }
-.hb summary .brand { margin-left: 4px; }
+.hb summary .vtag { margin-left: 4px; }
 .modal.wide { width: min(980px, 100%); }
 .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .choice { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -556,15 +556,15 @@ const PROCS = {
     what: "Approval from the local authority (the AHJ) that a data center may be built here, and review of your construction drawings.",
     why: "No permit, no construction. Generators, noise, water use and setbacks often decide approval.",
     nums: ["Some counties now limit data centers by zone", "Generator air permits can take months", "Public hearings are common for large campuses"] },
-  retrofit: { name: "Structural survey and slab upgrade", icon: "wrench", cost: 15000, dur: 5, level: 1,
+  retrofit: { short: "slab survey", name: "Structural survey and slab upgrade", icon: "wrench", cost: 15000, dur: 5, level: 1,
     what: "Engineers check the slab, roof and walls. Weak areas get reinforced; the envelope is sealed against dust and humidity.",
     why: "A hangar or warehouse floor was designed for planes or pallets, not 1,000 kg racks sitting in the same spot for years.",
     nums: ["Loaded racks weigh 600–1,400 kg each", "Roof-mounted equipment needs extra steel", "Sealing the envelope helps humidity control"] },
-  elecPermit: { name: "Electrical inspection", icon: "doc", cost: 3000, dur: 4, level: 1,
+  elecPermit: { short: "inspection", name: "Electrical inspection", icon: "doc", cost: 3000, dur: 4, level: 1,
     what: "The inspector checks your wiring, grounding and breakers against the electrical code before anything is energized.",
     why: "Nothing gets switched on without passing. In the US, NFPA 70 (the NEC) has a section just for IT equipment rooms (Article 645).",
     nums: ["Grounding and bonding are top inspection items", "Labels and arc-flash studies are required", "Re-inspection follows every major change"] },
-  interconnect: { name: "Utility service upgrade", icon: "plug", cost: 15000, dur: 6, level: 2,
+  interconnect: { short: "utility deal", name: "Utility service upgrade", icon: "plug", cost: 15000, dur: 6, level: 2,
     what: "An agreement with the utility to supply a bigger service, plus their design and installation of the transformer connection.",
     why: "You can't just plug in a transformer: the utility designs the connection and schedules the work.",
     nums: ["Utilities charge for line extensions and equipment", "Timelines run months to years", "You'll sign a minimum-load or take-or-pay contract"] },
@@ -580,7 +580,7 @@ const PROCS = {
     what: "The Uptime Institute reviews your design documents, then visits to verify the constructed facility meets Tier III.",
     why: "Banks, governments and many enterprises require it in their contracts.",
     nums: ["Design certification first, then constructed facility", "Operational sustainability is a separate rating", "Many sites claim a tier without certification"] },
-  hvStudy: { name: "Grid interconnection study", icon: "tower", cost: 100000, dur: 10, level: 4,
+  hvStudy: { short: "grid study", name: "Grid interconnection study", icon: "tower", cost: 100000, dur: 10, level: 4,
     what: "The utility or grid operator models how your new multi-megawatt load affects the transmission system and what upgrades it needs.",
     why: "Big loads can destabilize the grid. No study, no substation.",
     nums: ["Studies can take one to several years in busy markets", "You may pay for network upgrades", "Some campuses add on-site generation to start sooner"] },
@@ -1725,8 +1725,8 @@ function setHTML(el, html) { if (el._h !== html) { el._h = html; el.innerHTML = 
 const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
 function brandTag(k, picks) {
   const it = ITEMS[k];
-  if (picks?.length && it.options) return [...new Set(picks.map(i => it.options[i].jci))].map(j => `<span class="brand ${j ? "jci" : ""}">${j ? "JCI" : "Non-JCI"}</span>`).join(" ");
-  return it.jci === "yes" ? `<span class="brand jci">JCI</span>` : it.jci === "option" ? `<span class="brand jci">JCI option</span>` : `<span class="brand">Non-JCI</span>`;
+  if (picks?.length && it.options) return [...new Set(picks.map(i => it.options[i].jci))].map(j => `<span class="vtag ${j ? "jci" : ""}">${j ? "JCI" : "Non-JCI"}</span>`).join(" ");
+  return it.jci === "yes" ? `<span class="vtag jci">JCI</span>` : it.jci === "option" ? `<span class="vtag jci">JCI option</span>` : `<span class="vtag">Non-JCI</span>`;
 }
 function lessonBody(x) {
   return `<div class="lesson-body"><h4>What it is</h4><p>${esc(x.what)}</p>${x.why ? `<h4>Why it matters</h4><p>${esc(x.why)}</p>` : ""}${x.nums ? `<h4>Real-world numbers</h4><ul>${x.nums.map(v => `<li>${esc(v)}</li>`).join("")}</ul>` : ""}${x.vendors ? `<h4>Who makes it</h4><p>${esc(x.vendors)}</p>` : ""}</div>`;
@@ -1816,13 +1816,16 @@ function renderAll() {
     const count = k === "rack" ? `${rackCount()}/${LEVELS[S.level].rackCap}` : it.max > 1 ? `${n(k)}/${it.max}` : "";
     const st = lockLvl ? `<span class="st lock">Level ${it.level}</span>` : !b ? `<span class="st ok">Ready</span>`
       : b.built ? `<span class="st lock">Built</span>` : b.lock ? `<span class="st lock">Full</span>` : b.money ? `<span class="st no">Saving up</span>`
-      : `<span class="st no">Needs ${b.needProc ? PROCS[b.needProc].name.toLowerCase() : b.need ? ITEMS[b.need].name.toLowerCase() : "more"}</span>`;
+      : `<span class="st no" title="${esc(b.why)}">Needs ${b.needProc ? PROCS[b.needProc].short : b.need ? ITEMS[b.need].name.toLowerCase() : "more"}</span>`;
     return `<button class="bcard ${lockLvl ? "locked" : ""} ${hint?.kind === "item" && hint.key === k ? "hint" : ""}" data-act="item" data-k="${k}" aria-pressed="${S.selected === k}">
       <span class="top"><span class="part-ico">${ICON[it.icon]}</span><span class="cost">${it.options ? "from " : ""}${money(it.options ? Math.min(...it.options.map((_, i) => costOf(k, i))) : costOf(k))}</span></span>
       <b>${it.name}</b><small>${it.spec}${count ? " · " + count : ""}</small><span class="row2">${brandTag(k)}${st}</span></button>`;
   }).join(""));
 
   renderLesson();
+  const lessonEl = $("#lesson"), buildEl = document.querySelector(".build");
+  if (innerWidth > 900 && buildEl) { const bt = buildEl.offsetHeight + 28; lessonEl.style.bottom = bt + "px"; lessonEl.style.maxHeight = Math.max(160, document.querySelector(".stage").clientHeight - bt - 104) + "px"; }
+  else { lessonEl.style.bottom = ""; lessonEl.style.maxHeight = ""; }
   renderSide(c, L, hint, open);
   document.querySelectorAll("[data-prog]").forEach(el => { const t = S.tasks[el.dataset.prog]; el.style.width = t ? Math.min(100, t.t / t.dur * 100) + "%" : "0"; });
 }
@@ -1845,7 +1848,7 @@ function renderLesson() {
     const needBtn = b?.needProc ? `<button class="btn ghost" data-act="proc" data-k="${b.needProc}">${PROCS[b.needProc].name}</button>`
       : b && b.need && b.need !== k && ITEMS[b.need] ? `<button class="btn ghost" data-act="item" data-k="${b.need}">Show ${ITEMS[b.need].name}</button>` : "";
     const opts = it.options ? `<div class="lesson-body"><h4>Choose a product</h4></div><div class="opts">${it.options.map((o, i) => `
-      <button class="opt" data-act="opt" data-k="${k}" data-i="${i}" aria-pressed="${ci === i}"><span class="opt-top"><span class="brand ${o.jci ? "jci" : ""}">${o.jci ? "JCI" : "Non-JCI"}</span><span class="cost">${money(costOf(k, i))}</span></span><b>${o.name}</b><small>${esc(o.note)}${o.water && site().waterStress ? " Water is scarce here: +15% cost." : ""}</small></button>`).join("")}</div>` : "";
+      <button class="opt" data-act="opt" data-k="${k}" data-i="${i}" aria-pressed="${ci === i}"><span class="opt-top"><span class="vtag ${o.jci ? "jci" : ""}">${o.jci ? "JCI" : "Non-JCI"}</span><span class="cost">${money(costOf(k, i))}</span></span><b>${o.name}</b><small>${esc(o.note)}${o.water && site().waterStress ? " Water is scarce here: +15% cost." : ""}</small></button>`).join("")}</div>` : "";
     setHTML(lesson, `<div class="lesson-top"><span class="part-ico">${ICON[it.icon]}</span><div><div class="eyebrow">${it.cat} · Level ${it.level} · ${brandTag(k)}</div><h3>${it.name}</h3></div><button class="x" data-act="closeLesson" aria-label="Close lesson">${ICON.x}</button></div>
       <div class="specs">${chip("info", it.spec)}${it.max > 1 ? chip("idle", `${n(k)} of ${it.max} built`) : ""}</div>
       ${lessonBody(it)}${opts}
