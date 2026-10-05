@@ -74,8 +74,8 @@ svg { display: block; flex: none; }
 #scene.pointing { cursor: pointer; }
 .panel { background: var(--panel); border: 1px solid rgba(255,255,255,.7); border-radius: var(--r); box-shadow: var(--shadow); backdrop-filter: blur(10px); }
 
-.kpis { position: absolute; top: 16px; left: 16px; display: flex; gap: 10px; z-index: 2; max-width: calc(100% - 440px); overflow-x: auto; padding-bottom: 4px; }
-.kpi { display: flex; align-items: center; gap: 11px; padding: 11px 14px 11px 11px; min-width: 168px; flex: none; }
+.kpis { position: absolute; top: 16px; left: 16px; display: flex; gap: 10px; scrollbar-width: thin; z-index: 2; max-width: calc(100% - 440px); overflow-x: auto; padding-bottom: 4px; }
+.kpi { display: flex; align-items: center; gap: 10px; padding: 10px 13px 10px 10px; min-width: 150px; flex: none; }
 .kpi .ico, .ico-tile { width: 38px; height: 38px; border-radius: 10px; background: var(--accent-wash); color: var(--accent); display: grid; place-items: center; flex: none; }
 .kpi.warn .ico { background: var(--warn-wash); color: var(--warn); }
 .kpi.bad .ico { background: var(--bad-wash); color: var(--bad); }
@@ -170,7 +170,7 @@ svg { display: block; flex: none; }
 .lesson-body li { margin: 1px 0; }
 
 /* ---------- lesson card & build bar ---------- */
-.lesson { position: absolute; left: 16px; bottom: 200px; width: 420px; max-height: calc(100% - 330px); min-height: 120px; overflow-y: auto; z-index: 3; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.lesson { position: absolute; left: 16px; bottom: 212px; width: 420px; max-height: calc(100% - 330px); min-height: 120px; overflow-y: auto; z-index: 3; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
 .lesson-top { display: flex; gap: 11px; align-items: flex-start; }
 .lesson-top h3 { margin: 1px 0 0; font-size: 16px; letter-spacing: -0.01em; }
 .lesson-top .x { margin-left: auto; border: 0; background: transparent; color: var(--muted); border-radius: 7px; padding: 4px; }
@@ -186,7 +186,7 @@ svg { display: block; flex: none; }
 .cat { border: 0; border-radius: 999px; padding: 4px 10px; font-size: 11.5px; font-weight: 700; background: var(--wash); color: var(--muted); }
 .cat[aria-pressed="true"] { background: var(--ink); color: #fff; }
 .cards { display: flex; gap: 8px; overflow-x: auto; padding: 8px 2px 4px; scroll-snap-type: x proximity; }
-.bcard { flex: none; width: 150px; text-align: left; border: 1px solid var(--line); background: var(--panel-solid); border-radius: 12px; padding: 9px 10px; display: flex; flex-direction: column; gap: 3px; scroll-snap-align: start; position: relative; }
+.bcard { flex: none; width: 158px; text-align: left; border: 1px solid var(--line); background: var(--panel-solid); border-radius: 12px; padding: 9px 10px; display: flex; flex-direction: column; gap: 3px; scroll-snap-align: start; position: relative; }
 .bcard:hover { border-color: #c8d3f5; }
 .bcard[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .bcard .top { display: flex; align-items: center; justify-content: space-between; }
@@ -218,6 +218,38 @@ svg { display: block; flex: none; }
 .modal .foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .learned { margin: 0; padding-left: 18px; }
 .learned li { margin: 3px 0; }
+
+/* ---------- brands, options, choices ---------- */
+.brand { display: inline-flex; align-items: center; border-radius: 5px; padding: 1px 6px; font-size: 10px; font-weight: 800; letter-spacing: .03em; background: var(--wash); color: var(--muted); white-space: nowrap; vertical-align: middle; }
+.brand.jci { background: #e3f1ff; color: #0b5cad; }
+.bcard .row2 { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 2px; }
+.cat.jcicat { color: #0b5cad; }
+.cat.jcicat[aria-pressed="true"] { background: #0b5cad; color: #fff; }
+.money small.neg { color: var(--bad); }
+.opts { display: flex; flex-direction: column; gap: 6px; }
+.opt { text-align: left; border: 1px solid var(--line); background: var(--panel-solid); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: #f7f9ff; }
+.opt .opt-top { display: flex; justify-content: space-between; align-items: center; }
+.opt b { font-size: 12.5px; }
+.opt small { color: var(--muted); font-size: 11.5px; }
+.opt .cost { font-weight: 800; font-size: 12px; }
+.obj .btn { flex: none; align-self: center; }
+.obj .bar, .lesson .bar { margin-top: 5px; }
+.bar { height: 5px; border-radius: 3px; background: #dfe4f0; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--accent); transition: width .3s linear; }
+.hb summary .brand { margin-left: 4px; }
+.modal.wide { width: min(980px, 100%); }
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.choice { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.choice h3 { margin: 2px 0 0; font-size: 15px; }
+.choice dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; font-size: 11.5px; }
+.choice dt { color: var(--muted); }
+.choice dd { margin: 0; font-weight: 600; }
+.choice p, .choice ul { margin: 0; font-size: 11.5px; }
+.choice ul { padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+.choice .pro { color: var(--good); font-weight: 600; }
+.choice .con { color: var(--bad); font-weight: 600; }
+.choice .btn { margin-top: auto; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 1180px) {
@@ -340,98 +372,240 @@ const ICON = {
   play: P('<path d="m6 4 14 8-14 8z"/>', 12),
   trophy: P('<path d="M6 9H4a2 2 0 0 1 0-4h2M18 9h2a2 2 0 0 0 0-4h-2M6 3h12v7a6 6 0 0 1-12 0zM9 21h6M12 16v5"/>', 16),
   wrench: P('<path d="M14.7 6.3a4 4 0 0 0 5 5L22 14l-8 8-2.3-2.3a4 4 0 0 0-5-5L2 10l8-8z"/>', 16),
+  map: P('<path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12"/><circle cx="12" cy="10" r="2.5"/>', 16),
+  leaf: P('<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10"/><path d="M2 21c0-3 1.9-5.4 5.2-6.1 2.5-.5 5-2 6.3-3.9"/>', 16),
+  doc: P('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/>', 16),
+  check2: P('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>', 16),
+  spark: P('<path d="M12 3l1.9 5.8L20 10l-5 3.6L16.5 20 12 16.3 7.5 20 9 13.6 4 10l6.1-1.2z"/>', 16),
+  monitor: P('<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M6 12l3-3 3 3 4-5"/>', 16),
+  wallet: P('<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3h-5a2 2 0 0 0 0 4h5v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/>', 16),
 };
 $("#logo").innerHTML = `<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 29 9.5v13L16 30 3 22.5v-13z" fill="#2f5bea"/><path d="M16 2 29 9.5 16 17 3 9.5z" fill="#6f8cff"/><path d="M16 17v13L3 22.5v-13z" fill="#1f45c7"/><path d="M9 20.5h.01M9 17h.01" stroke="#7df0b8" stroke-width="2.4" stroke-linecap="round"/></svg>`;
 document.querySelectorAll("[data-icon]").forEach(el => { el.outerHTML = ICON[el.dataset.icon]; });
-
 /* =====================================================================
-   CURRICULUM: equipment, lessons, levels, drills
+   CURRICULUM: sites, buildings, equipment, processes, levels, drills
    ===================================================================== */
+const SITES = {
+  ashburn: { name: "Ashburn, Virginia", tag: "Data Center Alley", price: 0.09, cool: 1.0, rev: 1.15, land: 1.3, equip: 0.95, waterStress: false,
+    facts: [["Power price", "$0.09/kWh"], ["Grid", "Constrained: multi-year waits for big loads"], ["Fiber", "Densest in the world, next to every cloud"], ["Climate", "Humid, four seasons"], ["Water", "Available"], ["Land", "Expensive"], ["Incentive", "Sales-tax exemption on DC equipment"]],
+    plus: "Customers pay a premium to be here (+15% revenue).", minus: "Land costs 30% more, and big grid upgrades are slow and pricey." },
+  phoenix: { name: "Phoenix, Arizona", tag: "Desert growth market", price: 0.08, cool: 1.25, rev: 1.0, land: 0.85, equip: 0.95, waterStress: true,
+    facts: [["Power price", "$0.08/kWh"], ["Grid", "Good, but stressed at summer peaks"], ["Fiber", "Good west-coast routes"], ["Climate", "Very hot, dry summers"], ["Water", "Scarce"], ["Land", "Cheap"], ["Incentive", "Sales-tax exemption on DC equipment"]],
+    plus: "Cheap land and low disaster risk.", minus: "Heat makes cooling work 25% harder; water-cooled plants are a poor fit." },
+  columbus: { name: "Columbus, Ohio", tag: "Midwest hub", price: 0.07, cool: 0.9, rev: 1.0, land: 0.8, equip: 0.95, waterStress: false,
+    facts: [["Power price", "$0.07/kWh"], ["Grid", "Capacity available, upgrades planned"], ["Fiber", "Good, between the East Coast and Chicago"], ["Climate", "Cold winters allow free cooling"], ["Water", "Plentiful"], ["Land", "Cheap"], ["Incentive", "Sales-tax exemption on DC equipment"]],
+    plus: "Balanced: cheaper power and land, cool winters.", minus: "Some storm and tornado risk." },
+  lulea: { name: "Luleå, Sweden", tag: "Nordic free cooling", price: 0.04, cool: 0.55, rev: 0.8, land: 0.7, equip: 1.0, waterStress: false,
+    facts: [["Power price", "$0.04/kWh, hydro"], ["Grid", "Strong and renewable"], ["Fiber", "Far from most users: higher latency"], ["Climate", "Subarctic: cold air most of the year"], ["Water", "Plentiful"], ["Land", "Very cheap"], ["Incentive", "Low-cost renewable power"]],
+    plus: "Cheapest, greenest power and outside air cools almost for free.", minus: "Far from users: customers pay 20% less." },
+};
+const BUILDINGS = {
+  hangar: { name: "Aircraft hangar", cost: 300000, permit: 7, cool: 1.1, retrofit: true, icon: "building",
+    pros: ["Huge column-free floor", "High ceiling lets hot air rise away from racks (+10% air cooling)", "Quick to buy and convert"],
+    cons: ["Slab and roof need a structural survey", "Big doors and thin walls need sealing"] },
+  warehouse: { name: "Warehouse", cost: 220000, permit: 6, cool: 0.9, retrofit: true, icon: "building",
+    pros: ["Cheapest option", "Truck docks already in place"],
+    cons: ["Low ceiling traps heat (−10% air cooling)", "Slab is often too thin for loaded racks"] },
+  greenfield: { name: "Build new", cost: 420000, permit: 12, cool: 1.05, retrofit: false, icon: "building",
+    pros: ["Designed for racks: right slab, ceiling height and power rooms", "No retrofit surprises (+5% air cooling)"],
+    cons: ["Most expensive", "Longest permitting and construction"] },
+};
+
+/* Equipment. jci: "yes" (only JCI option), "option" (JCI and others), "no" (outside JCI's portfolio) */
 const ITEMS = {
-  utility: { name: "Utility service", cat: "Power", level: 1, cost: 8000, max: 1, icon: "plug", spec: "50 kW from the grid",
+  utility: { name: "Utility service", cat: "Power", level: 1, cost: 8000, max: 1, icon: "plug", spec: "50 kW from the grid", jci: "no",
+    vendors: "Delivered by the local utility; switchboards from Eaton, ABB, Siemens or Schneider Electric.",
     what: "The building's connection to the power grid: the utility meter, a main breaker and a switchboard that feeds your equipment.",
     why: "Everything else depends on it. Size it for total facility power (servers plus cooling and losses), not just the servers.",
     nums: ["Small rooms often run on a 208 V or 400 V three-phase panel", "A 225 A, 208 V three-phase feed is about 80 kVA", "Plan about 20% headroom over peak load"] },
-  split: { name: "Precision AC", cat: "Cooling", level: 1, cost: 6000, max: 2, icon: "snow", spec: "12 kW of cooling",
+  split: { name: "Precision AC", cat: "Cooling", level: 1, cost: 6000, max: 2, icon: "snow", spec: "12 kW of cooling", jci: "no",
+    vendors: "Vertiv (Liebert), Stulz, Schneider Electric (Uniflair), Mitsubishi Electric.",
     what: "A cooling unit built for server rooms. It runs 24/7 and removes mostly dry (sensible) heat from electronics, unlike office air conditioning.",
     why: "Every watt a server draws turns into heat. Without cooling, a small room full of servers overheats within minutes.",
     nums: ["1 kW of IT load produces 3,412 BTU/h of heat", "ASHRAE recommends 18–27 °C air at the server inlet", "Rooms cooled like this usually run a PUE near 2.0"] },
-  fiber: { name: "Fiber uplink", cat: "Network", level: 1, cost: 4000, max: 1, icon: "link", spec: "Carrier 1, 10 Gb/s",
+  fiber: { name: "Fiber uplink", cat: "Network", level: 1, cost: 4000, max: 1, icon: "link", spec: "Carrier 1, 10 Gb/s", jci: "no",
+    vendors: "Carriers such as Lumen, Zayo, Verizon or AT&T; routers and switches from Cisco, Juniper or Arista.",
     what: "A fiber-optic line from an internet carrier, landing on your router and the switches in each rack.",
     why: "Servers earn nothing if users can't reach them. You buy internet transit from carriers and connect it to your racks.",
     nums: ["A single 10 Gb/s link is typical for a small room", "Light in fiber covers about 200 km per millisecond", "One carrier means one single point of failure"] },
-  rack: { name: "Server rack", cat: "IT", level: 1, cost: 5000, icon: "rack", spec: "6 kW of servers",
+  rack: { name: "Server rack", cat: "IT", level: 1, cost: 5000, icon: "rack", spec: "6 kW of servers", jci: "no",
+    vendors: "Cabinets from Vertiv, Schneider Electric (APC) or Rittal; servers from Dell, HPE, Lenovo or Supermicro.",
     what: "A 42U steel cabinet (600 mm wide, about 1.1 m deep) holding servers, storage and a top-of-rack switch, fed by two power strips (PDUs).",
     why: "Racks are what customers pay for. Everything else in the building exists to keep them powered, cooled and connected.",
-    nums: ["Enterprise racks draw 5–10 kW", "AI GPU racks draw 40–130 kW", "1U = 44.45 mm (1.75 in) of rack height"] },
-  upsSmall: { name: "UPS", cat: "Power", level: 1, cost: 12000, max: 1, icon: "battery", spec: "20 kW · 10 min battery",
+    nums: ["Enterprise racks draw 5–10 kW", "A loaded rack weighs 600–1,400 kg", "1U = 44.45 mm (1.75 in) of rack height"] },
+  upsSmall: { name: "UPS", cat: "Power", level: 1, cost: 12000, max: 1, icon: "battery", spec: "20 kW · 10 min battery", jci: "no",
+    vendors: "Schneider Electric (APC), Vertiv (Liebert), Eaton.",
     what: "An uninterruptible power supply: batteries plus power electronics between the grid and your racks. An online (double-conversion) UPS feeds the servers continuously from its inverter.",
     why: "The grid blinks more often than you'd think. A dip of a few cycles reboots servers; a UPS rides through it with no interruption.",
     nums: ["Typical battery runtime: 5–15 minutes", "Lithium-ion is replacing lead-acid in new builds", "Size the UPS for the IT load in kW"] },
-  transformer: { name: "Transformer", cat: "Power", level: 2, cost: 60000, max: 1, icon: "bolt", spec: "300 kW service",
+  transformer: { name: "Transformer", cat: "Power", level: 2, cost: 60000, max: 1, icon: "bolt", spec: "300 kW service", jci: "no",
+    vendors: "Eaton, ABB, Siemens Energy, Hitachi Energy.",
     what: "A pad-mounted transformer that steps the utility's medium voltage (for example 12.47 kV) down to 480 V or 400 V for your switchgear.",
     why: "A building panel tops out at a few dozen kW. To grow, you need your own transformer from the utility.",
-    nums: ["Utility lead times are often 6–18 months", "Transformers run about 98–99% efficient", "Capacity is rated in kVA"] },
-  ups: { name: "UPS system", cat: "Power", level: 2, cost: 120000, max: 4, icon: "battery", spec: "500 kW per module",
+    nums: ["Lead times are often 6–18 months", "Transformers run about 98–99% efficient", "Capacity is rated in kVA"] },
+  ups: { name: "UPS system", cat: "Power", level: 2, cost: 120000, max: 4, icon: "battery", spec: "500 kW per module", jci: "no",
+    vendors: "Schneider Electric (Galaxy), Vertiv (Liebert EXL), Eaton (93PM/9395).",
     what: "A modular UPS with battery strings sized for a whole data hall, installed here as outdoor power skids.",
     why: "One small UPS can't carry a hall. A bigger system with a spare module lets you service one without dropping the load.",
     nums: ["Efficiency is 94–97% in double-conversion mode", "Modules are often 50–250 kW each", "2N means two complete systems feeding the A and B power strips"] },
-  gen: { name: "Diesel generator", cat: "Power", level: 2, cost: 150000, max: 6, icon: "engine", spec: "500 kW standby",
+  gen: { name: "Diesel generator", cat: "Power", level: 2, cost: 150000, max: 6, icon: "engine", spec: "500 kW standby", jci: "no",
+    vendors: "Caterpillar, Cummins, Rolls-Royce (mtu), Kohler. Transfer switches from ASCO, Eaton or ABB.",
     what: "A standby engine-generator. An automatic transfer switch (ATS) senses a utility outage, starts the engine and moves the load over.",
     why: "UPS batteries last minutes; outages can last hours. The UPS bridges the roughly 10 seconds the generator needs to start and stabilize.",
     nums: ["Start and take load in about 10 seconds", "Tier III and IV sites keep 12+ hours of fuel; many keep 24–48", "Tested monthly, often against a load bank"] },
-  crac: { name: "CRAC unit", cat: "Cooling", level: 2, cost: 35000, max: 4, icon: "fan", spec: "40 kW of cooling",
+  crac: { name: "CRAC unit", cat: "Cooling", level: 2, cost: 35000, max: 4, icon: "fan", spec: "40 kW of cooling", jci: "no",
+    vendors: "Vertiv (Liebert), Stulz, Schneider Electric (Uniflair). JCI's air-side gear (Silent-Aire) is mostly chilled-water air handlers, which arrive with chillers in level 3.",
     what: "A computer room air conditioner: a floor-standing unit with its own refrigerant compressor that pulls in hot air and supplies cold air to the rack fronts.",
     why: "Wall units don't scale. CRACs bring real capacity, and installing one more than you need gives you N+1 cooling.",
     nums: ["CRAC uses refrigerant (DX); a CRAH uses chilled water", "A typical unit is 30–100 kW", "N+1: if you need N units, install N+1"] },
-  containment: { name: "Aisle containment", cat: "Cooling", level: 2, cost: 20000, max: 1, icon: "door", spec: "+25% air cooling",
+  containment: { name: "Aisle containment", cat: "Cooling", level: 2, cost: 20000, max: 1, icon: "door", spec: "+25% air cooling", jci: "no",
+    vendors: "Subzero, Upsite, Vertiv, Schneider Electric.",
     what: "Racks face each other across a cold aisle and exhaust into a hot aisle. Doors and a roof seal the hot aisle off.",
     why: "Without it, hot exhaust mixes back into the cold supply and you overcool to compensate. Containment raises effective cooling capacity and cuts cooling energy.",
     nums: ["Can cut cooling energy by 20–30%", "In this game: +25% capacity for CRACs and precision ACs", "Blanking panels in empty rack slots matter too"] },
-  chiller: { name: "Chiller", cat: "Cooling", level: 3, cost: 180000, max: 6, icon: "snow", spec: "300 kW of cooling",
-    what: "A refrigeration machine that makes chilled water (around 10–18 °C), piped to air handlers (CRAHs) in the hall.",
-    why: "Water carries heat far better than air, and one plant can serve many halls. With free cooling (economizers) it can skip the compressors on cold days.",
-    nums: ["The fans on top reject heat to outside air", "Free-cooling hours depend on climate", "Good chilled-water plants reach a PUE around 1.3"] },
-  fiber2: { name: "Second carrier", cat: "Network", level: 3, cost: 30000, max: 1, icon: "link", spec: "Diverse fiber path",
+  bms: { name: "Building management", cat: "Controls", level: 2, max: 1, icon: "monitor", spec: "Monitors every system", jci: "option",
+    options: [
+      { name: "Metasys", jci: true, cost: 40000, note: "JCI's building automation system: chillers, air handlers, power meters, alarms in one view." },
+      { name: "Other BMS / DCIM", jci: false, cost: 34000, note: "For example Siemens Desigo CC, Honeywell, or Schneider Electric EcoStruxure." },
+    ],
+    what: "A building management system (BMS) reads thousands of sensors (temperatures, flows, breaker states) and runs the control sequences for cooling plants. DCIM software adds rack-level power and capacity tracking.",
+    why: "You can't run what you can't see. Alarms reach your technicians sooner, so failures get fixed before they turn into outages.",
+    nums: ["A mid-size data hall has thousands of monitored points", "BACnet and Modbus are the common protocols", "In this game: technicians get 70 s instead of 45 s to respond"] },
+  chiller: { name: "Chiller", cat: "Cooling", level: 3, max: 6, icon: "snow", spec: "300 kW of cooling", jci: "option",
+    options: [
+      { name: "YORK YVAA air-cooled screw", jci: true, cost: 180000, f: 0.27, note: "JCI. Air-cooled, variable speed, no cooling-tower water. A common data center choice." },
+      { name: "YORK YZ magnetic-bearing centrifugal", jci: true, cost: 230000, f: 0.19, water: true, note: "JCI. Water-cooled with oil-free magnetic bearings: very efficient, but needs cooling towers that evaporate water." },
+      { name: "Air-cooled chiller, other vendor", jci: false, cost: 160000, f: 0.31, note: "For example Trane, Carrier or Daikin. Cheaper, a little less efficient in this game." },
+    ],
+    what: "A refrigeration machine that makes chilled water (around 10–18 °C), piped to air handlers (CRAHs or fan walls) in the hall. JCI's Silent-Aire builds custom fan walls and air handlers for this.",
+    why: "Water carries heat far better than air, and one plant can serve many halls. With free cooling (economizers), it can skip the compressors on cold days.",
+    nums: ["Chilled-water plants are far more efficient than many small DX units", "Free-cooling hours depend on climate", "Good chilled-water plants reach a PUE around 1.3"] },
+  openblue: { name: "OpenBlue optimization", cat: "Controls", level: 3, cost: 60000, max: 1, icon: "spark", spec: "−10% cooling energy", jci: "yes",
+    vendors: "JCI OpenBlue (for example OpenBlue Enterprise Manager). Similar analytics come from other BMS and DCIM vendors.",
+    what: "A software layer on top of the BMS that analyzes plant data and tunes setpoints, sequencing and fault detection.",
+    why: "Plants drift from their design over time. Continuous tuning and fault detection claw back energy and catch failing parts early.",
+    nums: ["In this game: −10% cooling overhead", "Works best with good metering and a BMS", "Savings vary widely from site to site"] },
+  fiber2: { name: "Second carrier", cat: "Network", level: 3, cost: 30000, max: 1, icon: "link", spec: "Diverse fiber path", jci: "no",
+    vendors: "A second carrier (Lumen, Zayo, Cogent, Verizon...), on a physically separate route.",
     what: "A second internet carrier whose fiber enters the site from a different side, through different conduit and manholes.",
     why: "Backhoes cut fiber. Two carriers on two physical paths, with BGP routing between them, keep you online when one line is cut.",
     nums: ["'Diverse' means separate conduit, manholes and building entrances", "Carrier-neutral sites host dozens of carriers in a meet-me room", "Tier III expects redundant distribution paths"] },
-  fire: { name: "Fire suppression", cat: "Safety", level: 3, cost: 40000, max: 1, icon: "flame", spec: "VESDA + clean agent",
-    what: "Very early smoke detection (VESDA) that samples air through small pipes, plus a clean-agent gas or pre-action sprinkler system.",
+  fire: { name: "Fire protection", cat: "Safety", level: 3, max: 1, icon: "flame", spec: "Detection + suppression", jci: "option",
+    options: [
+      { name: "Tyco SAPPHIRE clean agent + Simplex alarm", jci: true, cost: 45000, note: "JCI brands. Novec 1230-based gas puts out fires without wetting servers; Simplex runs detection and alarms." },
+      { name: "Pre-action sprinkler + VESDA", jci: false, cost: 32000, note: "Dry pipes plus aspirating smoke detection (VESDA by Xtralis, a Honeywell brand). Sprinkler valves from Viking and others. JCI's Tyco also makes pre-action sprinklers." },
+    ],
+    what: "Very early smoke detection that samples air through small pipes, plus a clean-agent gas or pre-action sprinkler system.",
     why: "A normal sprinkler would destroy the servers. Clean agents put out a fire without harming electronics; pre-action pipes stay dry until two separate triggers fire.",
-    nums: ["VESDA detects smoke long before it's visible", "Clean agents include FM-200, Novec 1230 and inert gases", "Insurers and most customers require it"] },
-  security: { name: "Perimeter security", cat: "Safety", level: 3, cost: 30000, max: 1, icon: "shield", spec: "Fence, gate, guard",
-    what: "A fence, vehicle gate and guard booth outside; mantraps, badges and biometrics inside.",
+    nums: ["Aspirating detectors sense smoke long before it's visible", "Clean agents: Novec 1230-type fluids, FM-200, or inert gases such as INERGEN (an Ansul/JCI brand)", "Insurers and most customers require it"] },
+  security: { name: "Security", cat: "Safety", level: 3, max: 1, icon: "shield", spec: "Fence, access, video", jci: "option",
+    options: [
+      { name: "C•CURE 9000 + Illustra cameras", jci: true, cost: 30000, note: "JCI brands: Software House C•CURE access control, Illustra cameras, exacqVision video management." },
+      { name: "Other access + video", jci: false, cost: 27000, note: "For example Genetec, LenelS2 and Axis cameras." },
+    ],
+    what: "A fence, vehicle gate and guard booth outside; mantraps, badge readers, biometrics and cameras inside.",
     why: "Physical access is the last line of defense. Customers and auditors (SOC 2, ISO 27001) check it.",
-    nums: ["Layers: perimeter → building → hall → cage → rack", "A mantrap lets one person through at a time", "90 days of CCTV retention is common"] },
-  substation: { name: "Substation", cat: "Power", level: 4, cost: 900000, max: 1, icon: "tower", spec: "2.5 MW grid capacity",
+    nums: ["Layers: perimeter → building → hall → cage → rack", "A mantrap lets one person through at a time", "90 days of video retention is common"] },
+  substation: { name: "Substation", cat: "Power", level: 4, cost: 900000, max: 1, icon: "tower", spec: "2.5 MW grid capacity", jci: "no",
+    vendors: "Built with the utility; transformers and switchgear from Hitachi Energy, Siemens Energy, GE Vernova or ABB.",
     what: "Your own high-voltage connection: transformers that step transmission voltage (for example 115 kV) down to medium voltage for the campus.",
     why: "AI campuses need tens to hundreds of megawatts. Grid power, more than land or buildings, now limits where new data centers go.",
     nums: ["Large transformers can take 2–4 years to arrive", "Hyperscale campuses run 100 MW and up", "In this game: 2.5 MW of grid capacity"] },
-  cdu: { name: "Liquid cooling", cat: "Cooling", level: 4, cost: 250000, max: 2, icon: "drop", spec: "500 kW CDU",
+  cdu: { name: "Liquid cooling", cat: "Cooling", level: 4, cost: 250000, max: 2, icon: "drop", spec: "500 kW CDU", jci: "no",
+    vendors: "Vertiv, CoolIT, nVent, Motivair (Schneider Electric). The facility water feeding it comes from the chiller plant, where YORK chillers fit in.",
     what: "A coolant distribution unit pumps a water-glycol loop to cold plates mounted directly on GPUs and CPUs, then hands the heat to facility water.",
     why: "Air can't pull 40+ kW out of one rack. Water carries roughly 3,500 times more heat than the same volume of air.",
     nums: ["Direct-to-chip cooling removes about 70–80% of a server's heat", "CDUs typically range from 500 kW to 2 MW", "Makes rack densities over 100 kW possible"] },
-  gpu: { name: "GPU rack", cat: "IT", level: 4, cost: 100000, max: 10, icon: "chip", spec: "40 kW AI servers",
+  gpu: { name: "GPU rack", cat: "IT", level: 4, cost: 100000, max: 10, icon: "chip", spec: "40 kW AI servers", jci: "no",
+    vendors: "GPU servers from Dell, HPE, Supermicro and others, mostly built on NVIDIA or AMD accelerators.",
     what: "A rack of 8-GPU AI servers (about 10 kW each) on a high-speed network fabric for training clusters.",
     why: "AI training is driving today's data center boom. These racks earn the most and stress every system you've built.",
-    nums: ["One 8-GPU server draws about 10 kW", "Rack density: 40–130 kW", "Thousands of GPUs train one frontier model"] },
-  hallA: { name: "Hall A", cat: "IT", level: 4, cost: 1200000, max: 1, icon: "building", spec: "+600 kW data hall",
+    nums: ["One 8-GPU server draws about 10 kW", "Rack density: 40–130 kW", "AI racks can weigh 1,500 kg or more"] },
+  hallA: { name: "Hall 2", cat: "IT", level: 4, cost: 1200000, max: 1, icon: "building", spec: "+600 kW data hall", jci: "no",
+    vendors: "Designed by data center engineering firms and built by general contractors; JCI supplies plant, controls, fire and security packages to builds like this.",
     what: "A second data hall: a new building with its own power distribution, cooling and rows of racks, plus a loading dock.",
     why: "Campuses grow hall by hall. Building shell, power and cooling ahead of demand lets you sell capacity quickly.",
     nums: ["A typical hall is 1–10 MW", "Building one takes 12–24 months", "In this game: +600 kW of IT load"] },
 };
-const ORDER = ["utility", "split", "fiber", "rack", "upsSmall", "transformer", "ups", "gen", "crac", "containment", "chiller", "fiber2", "fire", "security", "substation", "cdu", "gpu", "hallA"];
-const CATS = ["All", "Power", "Cooling", "IT", "Network", "Safety"];
+const ORDER = ["utility", "split", "fiber", "rack", "upsSmall", "transformer", "ups", "gen", "crac", "containment", "bms", "chiller", "openblue", "fiber2", "fire", "security", "substation", "cdu", "gpu", "hallA"];
+const CATS = ["All", "Power", "Cooling", "IT", "Network", "Controls", "Safety", "JCI"];
+
+/* Processes: things you do rather than build. They cost money and take time. */
+const PROCS = {
+  site: { name: "Choose a location", icon: "map", modal: "site", cost: 0,
+    what: "Pick the market you'll build in. Operators weigh power price and availability, fiber, climate, water, land, taxes, natural hazards and distance to customers.",
+    why: "Location sets your power bill, cooling costs and what customers will pay for the life of the building, which is 20 years or more.",
+    nums: ["Power is usually the biggest operating cost", "Cold climates cut cooling energy with free cooling", "Latency: every 100 km of fiber adds about 1 ms round trip"] },
+  utilLetter: { name: "Utility capacity letter", icon: "plug", cost: 5000, dur: 5, needs: "site",
+    what: "A written answer from the power company: how many megawatts it can deliver to this parcel, and when.",
+    why: "Grid capacity decides where data centers can go. In busy markets, utilities quote waits of several years for large loads.",
+    nums: ["Ask before you buy land, not after", "Large loads may need a new substation", "The letter is not a guarantee until you sign an agreement"] },
+  fiberSurvey: { name: "Fiber route survey", icon: "link", cost: 3000, dur: 4, needs: "site",
+    what: "Mapping which carriers have fiber near the site and how a second, physically separate path could reach the building.",
+    why: "No fiber, no customers. Running new fiber long distances is slow and expensive.",
+    nums: ["Look for at least two carriers on diverse routes", "New underground fiber costs tens of dollars per meter or more", "Meet-me rooms let customers connect to carriers"] },
+  esa: { name: "Environmental assessment", icon: "leaf", cost: 4000, dur: 5, needs: "site",
+    what: "A Phase I environmental site assessment: records review and site visit to look for contamination, plus floodplain and wetlands checks.",
+    why: "Buying contaminated or flood-prone land can make you liable for cleanup or wreck your insurance.",
+    nums: ["Phase I is records and observation; Phase II takes soil samples", "Stay out of the 100-year floodplain (or raise the floor well above it)", "Noise and diesel permits matter for generators"] },
+  building: { name: "Buy a building", icon: "building", modal: "building", needs: "utilLetter",
+    what: "Retrofit an existing shell (hangar or warehouse) or build a new, purpose-designed one.",
+    why: "Retrofits are faster and cheaper but come with structural and envelope compromises. Purpose-built halls cost more and take longer.",
+    nums: ["Data halls want a high ceiling and strong slab", "Floor loading targets of 12 kPa (250 lb/ft²) or more are common", "Power and cooling space can rival the white space itself"] },
+  permit: { name: "Zoning and building permit", icon: "doc", cost: 10000, needs: "building",
+    what: "Approval from the local authority (the AHJ) that a data center may be built here, and review of your construction drawings.",
+    why: "No permit, no construction. Generators, noise, water use and setbacks often decide approval.",
+    nums: ["Some counties now limit data centers by zone", "Generator air permits can take months", "Public hearings are common for large campuses"] },
+  retrofit: { name: "Structural survey and slab upgrade", icon: "wrench", cost: 15000, dur: 5, level: 1,
+    what: "Engineers check the slab, roof and walls. Weak areas get reinforced; the envelope is sealed against dust and humidity.",
+    why: "A hangar or warehouse floor was designed for planes or pallets, not 1,000 kg racks sitting in the same spot for years.",
+    nums: ["Loaded racks weigh 600–1,400 kg each", "Roof-mounted equipment needs extra steel", "Sealing the envelope helps humidity control"] },
+  elecPermit: { name: "Electrical inspection", icon: "doc", cost: 3000, dur: 4, level: 1,
+    what: "The inspector checks your wiring, grounding and breakers against the electrical code before anything is energized.",
+    why: "Nothing gets switched on without passing. In the US, NFPA 70 (the NEC) has a section just for IT equipment rooms (Article 645).",
+    nums: ["Grounding and bonding are top inspection items", "Labels and arc-flash studies are required", "Re-inspection follows every major change"] },
+  interconnect: { name: "Utility service upgrade", icon: "plug", cost: 15000, dur: 6, level: 2,
+    what: "An agreement with the utility to supply a bigger service, plus their design and installation of the transformer connection.",
+    why: "You can't just plug in a transformer: the utility designs the connection and schedules the work.",
+    nums: ["Utilities charge for line extensions and equipment", "Timelines run months to years", "You'll sign a minimum-load or take-or-pay contract"] },
+  cx13: { name: "Commissioning L1–L3", icon: "check2", cost: 25000, dur: 6, level: 2,
+    what: "L1: factory witness tests of key equipment. L2: delivery and installation checks. L3: each unit started up and run alone by the vendor.",
+    why: "Commissioning proves the design was built right before customers trust it. Skipping it is how new sites have outages on day one.",
+    nums: ["Levels run L1 (factory) to L5 (integrated test)", "An independent commissioning agent leads it", "Findings are tracked until closed"] },
+  cx45: { name: "Commissioning L4–L5", icon: "check2", cost: 60000, dur: 8, level: 3,
+    what: "L4: functional tests of each system (power, cooling, controls). L5: the integrated systems test: load banks run at full load while the team pulls the plug on the utility and fails parts on purpose.",
+    why: "Systems that work alone can fail together. The IST proves the whole facility rides through real failures.",
+    nums: ["Load banks simulate the IT load with heaters", "Tests follow written scripts (MOPs)", "Your failure drills are a small version of this"] },
+  tierCert: { name: "Tier III certification", icon: "trophy", cost: 80000, dur: 8, level: 3, needs: "cx45",
+    what: "The Uptime Institute reviews your design documents, then visits to verify the constructed facility meets Tier III.",
+    why: "Banks, governments and many enterprises require it in their contracts.",
+    nums: ["Design certification first, then constructed facility", "Operational sustainability is a separate rating", "Many sites claim a tier without certification"] },
+  hvStudy: { name: "Grid interconnection study", icon: "tower", cost: 100000, dur: 10, level: 4,
+    what: "The utility or grid operator models how your new multi-megawatt load affects the transmission system and what upgrades it needs.",
+    why: "Big loads can destabilize the grid. No study, no substation.",
+    nums: ["Studies can take one to several years in busy markets", "You may pay for network upgrades", "Some campuses add on-site generation to start sooner"] },
+  ppa: { name: "Renewable power deal", icon: "leaf", cost: 50000, dur: 6, level: 4,
+    what: "A power purchase agreement (PPA): a long-term contract to buy energy from a wind or solar farm at a fixed price.",
+    why: "Locks in price and meets customers' carbon goals. Hyperscalers are among the largest corporate buyers of renewable power.",
+    nums: ["Contracts usually run 10–20 years", "In this game: −15% on your power price", "Virtual PPAs settle financially instead of delivering power"] },
+};
 
 const CONCEPTS = {
+  siteSel: { name: "Site selection", icon: "map",
+    what: "Choosing where to build. The checklist: power (price, capacity, timeline), fiber, climate, water, land, taxes, hazards, labor and distance to customers.",
+    why: "Most of a data center's lifetime cost is decided before construction starts, by its location.",
+    nums: ["Northern Virginia is the world's largest data center market", "Nordic sites trade latency for cheap, green power", "Due diligence: power letter, fiber survey, environmental assessment"] },
   heat: { name: "Power in, heat out", icon: "flame",
     what: "Servers turn almost all the electricity they use into heat. A 6 kW rack is a 6 kW space heater that never switches off.",
     why: "So every data center is really two machines: one delivering power, one removing the heat it becomes. They grow together.",
     nums: ["Power path: grid → switchboard → UPS → PDU → server", "Heat path: server → room air → cooling unit → outside", "Build order: power, cooling, network, then protection"] },
-  pue: { name: "PUE", icon: "gauge",
-    what: "Power Usage Effectiveness = total facility power ÷ IT power. It measures how much extra energy goes to cooling and losses.",
-    why: "At a PUE of 2.0, every watt for servers costs another watt of overhead. Lower PUE means a smaller power bill and more servers per grid connection.",
+  jci: { name: "JCI in the data center", icon: "spark",
+    what: "Johnson Controls (JCI) supplies the mechanical, controls and life-safety side: YORK chillers, Silent-Aire air handlers and modular builds, Metasys BMS, OpenBlue software, Tyco and Simplex fire protection, Ansul INERGEN, and Software House C•CURE, Illustra and exacqVision security.",
+    why: "Most of the power train (UPS, generators, switchgear, transformers) and all IT gear come from other vendors. Knowing who makes what tells you who to call and how the systems fit together.",
+    nums: ["Build cards are tagged JCI, JCI option or Non-JCI", "Use the JCI filter in the build bar", "Not affiliated with Johnson Controls; product names may change, so check current catalogs"] },
+  pue: { name: "PUE and the power bill", icon: "gauge",
+    what: "Power Usage Effectiveness = total facility power ÷ IT power. Your power bill is facility power × price, so PUE is money.",
+    why: "At a PUE of 2.0, every watt for servers costs another watt of overhead. Watch the Profit card: better cooling raises it.",
     nums: ["Server closets: about 2.0", "Enterprise average: about 1.5", "Hyperscale: 1.1–1.2"] },
   n1: { name: "N, N+1 and 2N", icon: "shield",
     what: "N is the capacity you need. N+1 adds one spare unit. 2N duplicates the entire system.",
@@ -448,16 +622,30 @@ const CONCEPTS = {
   remote: { name: "Remote hands", icon: "wrench",
     what: "On-site technicians who swap failed parts, reseat cables and check hot spots so customers don't have to travel.",
     why: "Even with perfect redundancy, parts fail every day at scale. Fast response keeps a failure from turning into an outage.",
-    nums: ["Common SLA: respond within 15–30 minutes", "Spares on site: power supplies, fans, optics, drives", "Hot spots often mean missing blanking panels or a blocked tile"] },
+    nums: ["Common SLA: respond within 15–30 minutes", "Spares on site: power supplies, fans, optics, drives", "A BMS raises alarms before customers notice"] },
 };
 
 const LEVELS = [
-  { n: 1, name: "Server closet", tier: "Tier I", concept: "heat",
-    story: "A startup has leased you an empty room and wants its first two racks running. Learn the order every data center is built in: power, cooling, network, then protection.",
-    grant: 45000, rackCap: 3, camera: { x: 9, z: -1.5, zoom: 1.9 },
-    learned: ["Servers turn power into heat, so power and cooling grow together", "Racks need a grid feed, cooling and a network before they earn anything", "A UPS rides through grid blips"],
+  { n: 0, name: "Site and building", tier: "Planning", concept: "siteSel",
+    story: "You have investor money and a plan. Pick a market, check power, fiber and the environment, buy a building and get your permit.",
+    grant: 600000, rackCap: 0, camera: { x: 5, z: -2, zoom: 1.0 },
+    learned: ["Location sets your power bill and what customers pay", "Due diligence comes before buying: power letter, fiber, environment", "Retrofits are cheaper; new builds fit better"],
     objectives: [
+      { label: "Choose a location", proc: "site" },
+      { label: "Get a utility capacity letter", proc: "utilLetter" },
+      { label: "Survey fiber routes", proc: "fiberSurvey" },
+      { label: "Run an environmental assessment", proc: "esa" },
+      { label: "Buy a building", proc: "building" },
+      { label: "Get zoning and a building permit", proc: "permit" },
+    ] },
+  { n: 1, name: "Server closet", tier: "Tier I", concept: "heat",
+    story: "Your first customer, a startup, wants two racks running. Learn the order every data center is built in: power, cooling, network, then protection.",
+    grant: 30000, rackCap: 3, camera: { x: 9, z: -1.5, zoom: 1.9 },
+    learned: ["Servers turn power into heat, so power and cooling grow together", "Nothing is energized before inspection", "A UPS rides through grid blips"],
+    objectives: [
+      { label: "Survey and upgrade the slab", proc: "retrofit", when: () => BUILDINGS[S.building]?.retrofit },
       { label: "Connect to the grid", hint: "utility", done: () => n("utility") > 0 },
+      { label: "Pass the electrical inspection", proc: "elecPermit" },
       { label: "Install precision cooling", hint: "split", done: () => n("split") > 0 },
       { label: "Bring in a fiber uplink", hint: "fiber", done: () => n("fiber") > 0 },
       { label: "Run 2 server racks", hint: "rack", prog: () => [rackCount(), 2] },
@@ -465,22 +653,25 @@ const LEVELS = [
       { label: "Pass the power blip drill", drill: "blip" },
     ] },
   { n: 2, name: "Small data center", tier: "Tier II", concept: "n1",
-    story: "A customer wants 8 racks and can't tolerate outages. Upgrade the power service, add a generator for long outages, and give cooling a spare unit.",
-    grant: 420000, rackCap: 10, camera: { x: 6, z: -1, zoom: 1.4 },
-    learned: ["Generators cover long outages; the UPS bridges their 10-second start", "N+1 means one spare unit beyond what you need", "Containment stops hot and cold air mixing"],
+    story: "A customer wants 8 racks and can't tolerate outages. Upgrade the power service, add a generator, monitor everything and give cooling a spare unit.",
+    grant: 420000, rackCap: 10, camera: { x: 6, z: -1, zoom: 1.35 },
+    learned: ["Generators cover long outages; the UPS bridges their 10-second start", "N+1 means one spare unit beyond what you need", "A BMS shows problems before they become outages", "Commissioning proves each part works"],
     objectives: [
-      { label: "Upgrade to a 300 kW transformer", hint: "transformer", done: () => n("transformer") > 0 },
+      { label: "Sign a utility service upgrade", proc: "interconnect" },
+      { label: "Install a 300 kW transformer", hint: "transformer", done: () => n("transformer") > 0 },
       { label: "Run 8 racks", hint: "rack", prog: () => [rackCount(), 8] },
       { label: "Install a UPS system", hint: "ups", done: () => n("ups") > 0 },
       { label: "Install a standby generator", hint: "gen", done: () => n("gen") > 0 },
       { label: "Add aisle containment", hint: "containment", done: () => n("containment") > 0 },
       { label: "Cooling at N+1", hint: "crac", done: () => coolN1() && rackCount() > 0, sub: () => `Lose your biggest unit and you'd have ${kw(Math.max(0, C().air - C().airBig))} for ${kw(C().airHeat)} of heat` },
+      { label: "Install building management", hint: "bms", done: () => n("bms") > 0 },
+      { label: "Commission levels 1–3", proc: "cx13" },
       { label: "Pass the utility outage drill", drill: "outage" },
     ] },
   { n: 3, name: "Enterprise site", tier: "Tier III", concept: "tiers",
-    story: "A bank wants to move in. Tier III means any single part can fail or be taken down for maintenance without stopping a rack. Make everything N+1 and add a second network path.",
+    story: "A bank wants to move in. Tier III means any single part can fail or be serviced without stopping a rack. Make everything N+1, add a second network path, then prove it and get certified.",
     grant: 750000, rackCap: 30, camera: { x: 2, z: -3, zoom: 1.0 },
-    learned: ["Tier III means concurrently maintainable: N+1 everywhere", "Chilled water plants cut PUE", "Diverse fiber paths survive a cut cable", "Safety and security are part of the design"],
+    learned: ["Tier III means concurrently maintainable: N+1 everywhere", "Chilled water plants cut PUE and your power bill", "Diverse fiber paths survive a cut cable", "Integrated testing proves the whole site, then certification proves it to customers"],
     objectives: [
       { label: "Run 24 racks", hint: "rack", prog: () => [rackCount(), 24] },
       { label: "Build a chilled water plant", hint: "chiller", prog: () => [n("chiller"), 2] },
@@ -488,24 +679,28 @@ const LEVELS = [
       { label: "Generators at N+1", hint: "gen", done: () => genN1() },
       { label: "UPS at N+1", hint: "ups", done: () => upsN1() },
       { label: "Add a second fiber carrier", hint: "fiber2", done: () => n("fiber2") > 0 },
-      { label: "Install fire suppression", hint: "fire", done: () => n("fire") > 0 },
-      { label: "Secure the perimeter", hint: "security", done: () => n("security") > 0 },
-      { label: "Get PUE below 1.50", hint: "chiller", done: () => C().it > 0 && C().pue < 1.5, sub: () => `Now ${C().pue ? C().pue.toFixed(2) : "–"}. Chillers are the most efficient cooling.` },
+      { label: "Install fire protection", hint: "fire", done: () => n("fire") > 0 },
+      { label: "Secure the site", hint: "security", done: () => n("security") > 0 },
+      { label: "Get PUE below 1.50", hint: () => n("openblue") ? "chiller" : "openblue", done: () => C().it > 0 && C().pue < 1.5, sub: () => `Now ${C().pue ? C().pue.toFixed(2) : "–"}. Chillers and OpenBlue tuning both help.` },
+      { label: "Commission levels 4–5", proc: "cx45" },
       { label: "Pass the cooling failure drill", drill: "chillerFail" },
       { label: "Pass the generator failure drill", drill: "genFail" },
       { label: "Pass the fiber cut drill", drill: "fiberCut" },
+      { label: "Get Tier III certified", proc: "tierCert" },
     ] },
   { n: 4, name: "AI campus", tier: "Hyperscale", concept: "density",
-    story: "An AI lab needs a megawatt for training. GPU racks draw 40 kW each, too much for air. Bring in high-voltage power, liquid cooling and a second hall.",
+    story: "An AI lab needs a megawatt for training. GPU racks draw 40 kW each, too much for air. Bring in high-voltage power, liquid cooling, renewable energy and a second hall.",
     grant: 3800000, rackCap: 30, camera: { x: 1, z: -2, zoom: 0.9 },
     learned: ["Grid capacity is the first constraint on big campuses", "Liquid cooling handles densities air can't", "Campuses scale hall by hall, keeping N+1 at every step"],
     objectives: [
+      { label: "Complete the grid interconnection study", proc: "hvStudy" },
       { label: "Build the substation", hint: "substation", done: () => n("substation") > 0 },
+      { label: "Sign a renewable power deal", proc: "ppa" },
       { label: "Bring liquid cooling online", hint: "cdu", done: () => n("cdu") > 0 },
       { label: "Run 8 GPU racks", hint: "gpu", prog: () => [n("gpu"), 8] },
-      { label: "Open Hall A", hint: "hallA", done: () => n("hallA") > 0 },
+      { label: "Open Hall 2", hint: "hallA", done: () => n("hallA") > 0 },
       { label: "Reach 1 MW of IT load", hint: "gpu", prog: () => [Math.round(C().it), 1000], unit: "kW" },
-      { label: "Keep PUE at or below 1.35", hint: "chiller", done: () => C().it > 0 && C().pue <= 1.35, sub: () => `Now ${C().pue ? C().pue.toFixed(2) : "–"}` },
+      { label: "Keep PUE at or below 1.35", hint: () => n("openblue") ? "chiller" : "openblue", done: () => C().it > 0 && C().pue <= 1.35, sub: () => `Now ${C().pue ? C().pue.toFixed(2) : "–"}` },
       { label: "Pass the full-load outage drill", drill: "fullLoad" },
     ] },
 ];
@@ -518,25 +713,25 @@ const DRILLS = {
       : !c.ups ? fail(`The grid dipped for 2 seconds and every server rebooted. A UPS would have carried the ${kw(c.it)} load straight through it.`, "upsSmall")
       : c.ups < c.it ? fail(`Your UPS (${kw(c.ups)}) is smaller than the IT load (${kw(c.it)}). It overloaded and dropped the racks.`, "ups")
       : pass(`The grid dipped for 2 seconds. The UPS carried all ${kw(c.it)} and nobody noticed.`) },
-  outage: { name: "Utility outage", icon: "plug", desc: "The grid goes down for 3 hours.", power: true,
+  outage: { name: "Utility outage", icon: "plug", desc: "The grid goes down for 3 hours.", power: true, needs: "cx13",
     test: c => !c.it ? fail("Run some racks first, then test them.", "rack")
       : !c.ups ? fail("Without a UPS, the racks went dark during the 10 seconds the generator needed to start.", "ups")
       : c.ups < c.it ? fail(`UPS capacity (${kw(c.ups)}) is below the IT load (${kw(c.it)}). It tripped before the generator took over.`, "ups")
       : !c.gen ? fail("Your UPS ran for about 10 minutes, then its batteries were empty and the room went dark. Outages last hours; you need a generator.", "gen")
       : c.gen < c.facility ? fail(`The generator can't carry total facility power: ${kw(c.facility)} including cooling, vs ${kw(c.gen)}.`, "gen")
       : pass("The UPS carried the load for 10 seconds while the generator started. The ATS switched over and you ran on diesel for 3 hours until the grid came back.") },
-  chillerFail: { name: "Cooling failure", icon: "snow", desc: "Your biggest cooling unit breaks.",
+  chillerFail: { name: "Cooling failure", icon: "snow", desc: "Your biggest cooling unit breaks.", needs: "cx45",
     test: c => !c.airHeat ? fail("Run some racks first.", "rack")
       : c.air - c.airBig >= c.airHeat ? pass(`Your biggest unit (${kw(c.airBig)}) failed. The rest still had ${kw(c.air - c.airBig)} for ${kw(c.airHeat)} of heat. That's N+1.`)
       : fail(`After losing ${kw(c.airBig)}, you had ${kw(c.air - c.airBig)} of cooling for ${kw(c.airHeat)} of heat. Inlet temperatures climbed and servers throttled.`, coolItem()) },
-  genFail: { name: "Generator won't start", icon: "engine", desc: "Grid outage, and one generator fails to start.", power: true,
+  genFail: { name: "Generator won't start", icon: "engine", desc: "Grid outage, and one generator fails to start.", power: true, needs: "cx45",
     test: c => !c.gen ? fail("You don't have any generators yet.", "gen")
       : c.gen - 500 >= c.facility && c.ups >= c.it ? pass(`One generator failed to start. The remaining ${kw(c.gen - 500)} carried the ${kw(c.facility)} facility load.`)
       : fail(`With one generator down you had ${kw(Math.max(0, c.gen - 500))} for a ${kw(c.facility)} facility load. Install one more generator than you need (N+1).`, "gen") },
-  fiberCut: { name: "Fiber cut", icon: "link", desc: "A backhoe cuts carrier 1's fiber.",
+  fiberCut: { name: "Fiber cut", icon: "link", desc: "A backhoe cuts carrier 1's fiber.", needs: "cx45",
     test: c => c.carriers >= 2 ? pass("A backhoe cut carrier 1's fiber. BGP moved all traffic to carrier 2 within seconds.")
       : fail("A backhoe cut your only fiber. You were offline for about 6 hours until the carrier spliced it.", "fiber2") },
-  fullLoad: { name: "Full-load outage", icon: "chip", desc: "Peak training run, then the grid fails.", power: true,
+  fullLoad: { name: "Full-load outage", icon: "chip", desc: "Peak training run, then the grid fails.", power: true, needs: "cx45",
     test: c => c.it < 1000 ? fail(`Get to 1 MW of IT load first (now ${kw(c.it)}).`, n("hallA") ? "gpu" : "hallA")
       : !upsN1() ? fail(`The UPS needs a spare module: ${kw(c.ups - c.upsBig)} without the biggest module vs ${kw(c.it)} of IT.`, "ups")
       : !genN1() ? fail(`The generators need N+1: ${kw(Math.max(0, c.gen - 500))} with one down vs ${kw(c.facility)}.`, "gen")
@@ -547,38 +742,60 @@ const DRILLS = {
 
 /* ---------------- game state ---------------- */
 const S = {
-  level: 1, budget: LEVELS[0].grant, clock: 9 * 60, t: 0, built: {}, passed: {}, learned: [],
-  selected: null, tab: "mission", cat: "All", drill: null, incidents: [], incSeq: 1, nextIncident: 30, uptime: 100, rate: 0,
-  completed: false, levelShown: 0,
+  level: 0, budget: LEVELS[0].grant, clock: 9 * 60, t: 0, built: {}, picks: {}, choice: {}, passed: {}, learned: [], tasks: {},
+  site: null, building: null, selected: null, tab: "mission", cat: "All", drill: null, incidents: [], incSeq: 1, nextIncident: 30,
+  uptime: 100, rev: 0, bill: 0, rate: 0, completed: false, levelShown: -1,
 };
 const n = k => S.built[k] || 0;
+const site = () => SITES[S.site] || SITES.ashburn;
+const bld = () => BUILDINGS[S.building] || BUILDINGS.greenfield;
+const procDone = k => k === "site" ? !!S.site : k === "building" ? !!S.building : k === "permit" ? !!S.tasks.permit?.done : !!S.tasks[k]?.done;
+const procRunning = k => !!S.tasks[k] && !S.tasks[k].done;
+function procCost(k) {
+  if (k === "building") return 0;
+  const p = PROCS[k], base = p.cost || 0;
+  return k === "hvStudy" || k === "interconnect" ? Math.round(base * (S.site === "ashburn" ? 1.3 : 1)) : base;
+}
+function procDur(k) { return k === "permit" ? bld().permit : PROCS[k].dur || 0; }
+function costOf(k, i = S.choice[k] ?? 0) {
+  const it = ITEMS[k], o = it.options?.[i];
+  let c = (o ? o.cost : it.cost) * site().equip;
+  if (k === "substation" && S.site === "ashburn") c *= 1.3;
+  if (o?.water && site().waterStress) c *= 1.15;
+  return Math.round(c / 1000) * 1000;
+}
 
 /* derived capacity model (simplified for play) */
 let _caps = null;
 function C() { return _caps || (_caps = computeCaps()); }
 function invalidate() { _caps = null; }
 function computeCaps() {
-  const cm = n("containment") ? 1.25 : 1;
+  const cm = n("containment") ? 1.25 : 1, bc = bld().cool;
   const utilityCap = n("substation") ? 2500 : n("transformer") ? 300 : n("utility") ? 50 : 0;
   const ups = n("upsSmall") * 20 + n("ups") * 500;
   const upsBig = n("ups") ? 500 : n("upsSmall") ? 20 : 0;
   const gen = n("gen") * 500;
-  const U = { chiller: 300, crac: 40 * cm, split: 12 * cm };
+  const U = { chiller: 300, crac: 40 * cm * bc, split: 12 * cm * bc };
   const air = n("chiller") * U.chiller + n("crac") * U.crac + n("split") * U.split;
   const airBig = n("chiller") ? U.chiller : n("crac") ? U.crac : n("split") ? U.split : 0;
   const liquid = n("cdu") * 500;
   const rackIT = rackCount() * 6, gpuHeat = n("gpu") * 40, hallIT = n("hallA") * 600;
   const it = rackIT + gpuHeat + hallIT;
   const airHeat = rackIT + hallIT;
+  const picks = S.picks.chiller || [];
+  const chF = picks.length ? picks.reduce((a, i) => a + ITEMS.chiller.options[i].f, 0) / picks.length : 0.27;
   // cooling overhead: heat goes to the most efficient equipment first
   let rem = airHeat, over = 0;
   const take = (cap, f) => { const h = Math.min(rem, cap); over += h * f; rem -= h; };
-  take(n("chiller") * U.chiller, 0.27);
+  take(n("chiller") * U.chiller, chF);
   take(n("crac") * U.crac, n("containment") ? 0.42 : 0.58);
   take(n("split") * U.split, 0.88);
   over += rem * 1.2 + gpuHeat * 0.1;
+  over *= site().cool * (n("openblue") ? 0.9 : 1);
   const pue = it ? 1 + over / it + 0.07 : 0;
-  return { utilityCap, ups, upsBig, gen, air, airBig, liquid, it, airHeat, gpuHeat, pue, facility: it * (pue || 1), carriers: n("fiber") + n("fiber2") };
+  const facility = it * (pue || 1);
+  const price = site().price * (procDone("ppa") ? 0.85 : 1);
+  return { utilityCap, ups, upsBig, gen, air, airBig, liquid, it, airHeat, gpuHeat, pue, facility, price, carriers: n("fiber") + n("fiber2") };
 }
 const coolN1 = () => { const c = C(); return c.air - c.airBig >= c.airHeat; };
 const genN1 = () => { const c = C(); return n("gen") >= 2 && c.gen - 500 >= c.facility; };
@@ -601,20 +818,35 @@ function estimateAfter(addIT) {
   const pue = c.pue || (n("split") ? 1.95 : 1.5);
   return { it, facility: it * Math.max(pue, 1.1) };
 }
-/* What stops this item from being built right now? null or {why, need, lock, money} */
+/* What stops a process from starting? */
+function procBlocker(k) {
+  const p = PROCS[k];
+  if (procDone(k)) return { why: "Done", lock: true };
+  if (procRunning(k)) return { why: "In progress", lock: true };
+  if (p.level && p.level > S.level) return { why: `Unlocks at level ${p.level}`, lock: true };
+  if (p.needs && !procDone(p.needs)) return { why: `Finish “${PROCS[p.needs].name}” first`, needProc: p.needs };
+  if (S.budget < procCost(k)) return { why: `Need ${money(procCost(k) - S.budget)} more`, money: true };
+  return null;
+}
+/* What stops this item from being built right now? null or {why, need, needProc, lock, money} */
 function blocker(k) {
   const it = ITEMS[k], c = C();
   if (it.level > S.level) return { why: `Unlocks at level ${it.level}`, lock: true };
   if (k === "rack") {
-    const cap = LEVELS[S.level - 1].rackCap;
-    if (rackCount() >= cap) return { why: S.level < 3 ? `The room is full for this level (${cap} racks)` : "Hall B is full", lock: true };
+    const cap = LEVELS[S.level].rackCap;
+    if (rackCount() >= cap) return { why: S.level < 3 ? `The room is full for this level (${cap} racks)` : "Hall 1 is full", lock: true };
   } else if (n(k) >= it.max) return { why: "Fully built", lock: true, built: true };
+  if (BUILDINGS[S.building]?.retrofit && !procDone("retrofit") && k !== "utility") return { why: "The slab and roof must be surveyed and upgraded first", needProc: "retrofit" };
   if (k !== "utility" && k !== "substation" && !n("utility")) return { why: "Needs grid power first", need: "utility" };
+  if (k === "transformer" && !procDone("interconnect")) return { why: "The utility must agree to the bigger service first", needProc: "interconnect" };
+  if (k === "substation" && !procDone("hvStudy")) return { why: "The grid interconnection study must finish first", needProc: "hvStudy" };
+  if (k === "openblue" && !n("bms")) return { why: "OpenBlue builds on a BMS", need: "bms" };
   if (k === "fiber2" && !n("fiber")) return { why: "Needs the first carrier", need: "fiber" };
   if (k === "rack" || k === "gpu" || k === "hallA") {
     const addAir = k === "rack" ? 6 : k === "hallA" ? 600 : 0, addGpu = k === "gpu" ? 40 : 0;
+    if (!procDone("elecPermit")) return { why: "Nothing can be energized before the electrical inspection", needProc: "elecPermit" };
     if (k === "rack" && !n("fiber")) return { why: "Racks need a network to earn anything", need: "fiber" };
-    if (k === "hallA" && !n("substation")) return { why: "Hall A needs the substation's capacity", need: "substation" };
+    if (k === "hallA" && !n("substation")) return { why: "Hall 2 needs the substation's capacity", need: "substation" };
     if (addAir && c.air === 0) return { why: "Racks need cooling first, because every watt becomes heat", need: coolItem() };
     if (addAir && c.air < c.airHeat + addAir) return { why: `Not enough cooling: ${kw(c.airHeat + addAir)} of heat vs ${kw(c.air)} of capacity`, need: coolItem() };
     if (addGpu && c.liquid < c.gpuHeat + addGpu) return { why: `GPU racks need liquid cooling (${kw(c.gpuHeat + addGpu)} of heat vs ${kw(c.liquid)})`, need: "cdu" };
@@ -622,7 +854,7 @@ function blocker(k) {
     if (after.facility > c.utilityCap) return { why: `Grid service too small: ${kw(after.facility)} facility load vs ${kw(c.utilityCap)}`, need: powerItem() };
     if (c.ups && after.it > c.ups) return { why: `The UPS would be overloaded: ${kw(after.it)} vs ${kw(c.ups)}`, need: S.level >= 2 ? "ups" : null };
   }
-  if (S.budget < it.cost) return { why: `Need ${money(it.cost - S.budget)} more. Your racks earn while you wait`, money: true };
+  if (S.budget < costOf(k)) return { why: `Need ${money(costOf(k) - S.budget)} more. Your racks earn while you wait`, money: true };
   return null;
 }
 
@@ -766,7 +998,7 @@ box(15.4, 0.8, 0.3, 0xdde4f6, 10, 0.25, 4.05, hallB);
 box(0.3, 0.8, 12.4, 0xdde4f6, 17.65, 0.25, -2, hallB);
 box(15.42, 0.08, 0.32, COL.blue, 10, 1.05, 4.05, hallB, false);
 box(0.32, 0.08, 12.42, COL.blue, 17.65, 1.05, -2, hallB, false);
-{ const l = decal(word("HALL B"), 4.4, 1.1, hallB); l.position.set(10, 2.9, -7.88); }
+{ const l = decal(word("HALL 1"), 4.4, 1.1, hallB); l.position.set(10, 2.9, -7.88); }
 box(8.6, 0.02, 1.9, 0xdde6ff, 7.83, 0.25, -6.65, hallB, false);
 box(8.6, 0.02, 2.9, 0xdde6ff, 7.83, 0.25, -1.4, hallB, false);
 box(8.6, 0.02, 1.1, 0xdde6ff, 7.83, 0.25, 3.3, hallB, false);
@@ -778,7 +1010,29 @@ const ROWS = [
   { n: "C", z: 0.6, f: -1, aisle: -1.4 },
   { n: "D", z: 2.2, f: 1, aisle: 3.3 },
 ];
-ROWS.forEach(r => { const d = decal(badgeTex(r.n), 0.7, 0.7); d.rotation.x = -Math.PI / 2; d.position.set(3.05, 0.27, r.z); });
+ROWS.forEach(r => { const d = decal(badgeTex(r.n), 0.7, 0.7, hallB); d.rotation.x = -Math.PI / 2; d.position.set(3.05, 0.27, r.z); });
+// hangar: arched steel ribs and a half-round end wall
+const hangarExtras = new THREE.Group(); scene.add(hangarExtras);
+for (const x of [2.5, 6.3, 10.1, 13.9, 17.5]) {
+  const rib = new THREE.Mesh(new THREE.TorusGeometry(6.2, 0.13, 8, 40, Math.PI), mat(0x9aa6c4, { roughness: 0.5 }));
+  rib.rotation.y = Math.PI / 2; rib.position.set(x, 0.25, -2); rib.castShadow = true; hangarExtras.add(rib);
+}
+{ const end = new THREE.Mesh(new THREE.CircleGeometry(6.2, 40, 0, Math.PI), mat(COL.blue, { side: THREE.DoubleSide }));
+  end.rotation.y = Math.PI / 2; end.position.set(2.2, 0.25, -2); end.receiveShadow = true; hangarExtras.add(end);
+  const door = decal(word("HANGAR 1"), 4.4, 1.1, hangarExtras); door.rotation.y = Math.PI / 2; door.position.set(2.24, 4.6, -2); }
+for (const x of [4.4, 8.2, 12.0, 15.7]) box(0.08, 0.08, 12.4, 0x9aa6c4, x, 6.3, -2, hangarExtras, false);
+hangarExtras.visible = false;
+// warehouse: low roof trusses
+const warehouseExtras = new THREE.Group(); scene.add(warehouseExtras);
+for (const x of [2.6, 6.4, 10.2, 14, 17.4]) { box(0.12, 0.3, 12.4, 0x9aa6c4, x, 3.4, -2, warehouseExtras); }
+box(15.4, 0.12, 0.12, 0x9aa6c4, 10, 3.6, -2, warehouseExtras, false);
+warehouseExtras.visible = false;
+hallB.visible = false;
+// empty lot marker for site selection
+const lot = new THREE.Group(); scene.add(lot);
+box(16, 0.05, 13, 0xe9edf6, 10, 0.08, -2, lot, false);
+for (const [x, z] of [[2, -8.5], [18, -8.5], [2, 4.5], [18, 4.5]]) { cyl(0.06, 0.06, 0.9, COL.orange, x, 0, z, lot, 8); }
+info(lot, "lot");
 
 /* racks */
 const SLOT_FRAC = s => 0.1 + (s + 0.5) * 0.1333;
@@ -953,7 +1207,7 @@ slot("hallA", g => {
   for (let x = -15.8; x <= -0.2; x += 0.8) box(0.14, 0.12, 12.6, COL.blueRib, x, 4.75, -3, g, false);
   const disk = cyl(1.8, 1.8, 0.08, COL.white, -8, 4.86, -3, g); disk.castShadow = false;
   const lg = decal(textTexture((c, w, h) => logoPath(c, w / 2 - 90, h / 2 - 90, 180), 256, 256), 2.6, 2.6, g); lg.rotation.x = -Math.PI / 2; lg.position.set(-8, 4.95, -3);
-  const l = decal(word("HALL A"), 4.4, 1.1, g); l.rotation.y = Math.PI / 2; l.position.set(0.03, 3.3, -3);
+  const l = decal(word("HALL 2"), 4.4, 1.1, g); l.rotation.y = Math.PI / 2; l.position.set(0.03, 3.3, -3);
   [-12.5, -8, -3.5].forEach((bx, i) => {
     box(3.0, 3.3, 0.12, COL.white, bx, 0.15, 3.02, g, false);
     box(2.5, 2.75, 0.14, COL.ink, bx, 0.45, 3.04, g, false);
@@ -965,11 +1219,10 @@ slot("hallA", g => {
   pallet(-3.5, 2.2, 2, g).scale.setScalar(0.8);
   pallet(-1.0, 6.2, 1, g);
 });
-// re-pivot each slot on its own footprint so the pop-in grows from the right spot
-for (const k in SLOTS) for (const g of SLOTS[k]) {
-  const c = new THREE.Box3().setFromObject(g).getCenter(new THREE.Vector3()); c.y = 0;
-  g.children.forEach(ch => ch.position.sub(c)); g.position.copy(c);
-}
+// re-pivot groups on their own footprint so the pop-in grows from the right spot
+function pivot(g) { const c = new THREE.Box3().setFromObject(g).getCenter(new THREE.Vector3()); c.y = 0; g.children.forEach(ch => ch.position.sub(c)); g.position.copy(c); }
+for (const k in SLOTS) SLOTS[k].forEach(pivot);
+[hallB, hangarExtras, warehouseExtras].forEach(pivot);
 
 /* trucks */
 function makeTruck(cabColor, name, tagline) {
@@ -1063,6 +1316,7 @@ function tickPops(dt) {
   }
 }
 
+
 /* =====================================================================
    GAME ACTIONS
    ===================================================================== */
@@ -1078,8 +1332,9 @@ function learn(key) { if (!S.learned.includes(key)) S.learned.push(key); }
 function build(k) {
   const b = blocker(k);
   if (b) { toast(b.why + ".", "warn"); return; }
-  const it = ITEMS[k];
-  S.budget -= it.cost;
+  const it = ITEMS[k], pick = S.choice[k] ?? 0, cost = costOf(k);
+  S.budget -= cost;
+  if (it.options) (S.picks[k] = S.picks[k] || []).push(pick);
   if (k === "rack" || k === "gpu") {
     const r = (k === "rack" ? RACK_ORDER : GPU_ORDER).find(r => !r.built);
     r.built = true; popIn(r.mesh); showRackLeds(r);
@@ -1091,19 +1346,60 @@ function build(k) {
     popIn(g);
     if (k === "gen" && n("gen") === 1) { genPad.visible = true; popIn(fuelTank); }
     if (k === "chiller" && n("chiller") === 1) chillerPad.visible = true;
-    toast(`${it.name} built.`, "good");
+    toast(`${it.options ? it.options[pick].name : it.name} installed.`, "good");
   }
   learn(k);
   if (k === "split" || k === "crac") learn("pue");
   invalidate();
-  if (S.level >= 2 && it.cost >= 20000) truck.start();
+  if (S.level >= 2 && cost >= 20000) truck.start();
   renderAll();
   checkLevel();
+}
+
+function startProc(k) {
+  const p = PROCS[k];
+  if (p.modal) { learn(k); if (p.modal === "site") showSiteModal(); else if (procBlocker(k)?.needProc) toast(procBlocker(k).why + ".", "warn"); else showBuildingModal(); return; }
+  const b = procBlocker(k);
+  if (b) { toast(b.why + ".", "warn"); return; }
+  S.budget -= procCost(k);
+  S.tasks[k] = { t: 0, dur: procDur(k), done: false };
+  learn(k);
+  if (k === "cx13" || k === "cx45") learn("cx");
+  toast(`${p.name} started.`);
+  renderAll();
+}
+function tickTasks(dt) {
+  for (const k in S.tasks) {
+    const t = S.tasks[k]; if (t.done) continue;
+    t.t += dt;
+    if (t.t >= t.dur) { t.done = true; toast(`${PROCS[k].name}: done.`, "good"); invalidate(); renderAll(); checkLevel(); }
+  }
+}
+function chooseSite(key) {
+  if (S.site) return;
+  S.site = key; learn("site"); closeModal();
+  toast(`You're building in ${SITES[key].name}.`, "good");
+  renderAll(); checkLevel();
+}
+function buyBuilding(key) {
+  if (S.building) return;
+  const b = BUILDINGS[key], cost = Math.round(b.cost * site().land / 1000) * 1000;
+  if (S.budget < cost) { toast(`That costs ${money(cost)}. You have ${money(S.budget)}.`, "warn"); return; }
+  S.budget -= cost; S.building = key; learn("building");
+  lot.visible = false;
+  popIn(hallB);
+  if (key === "hangar") popIn(hangarExtras);
+  if (key === "warehouse") popIn(warehouseExtras);
+  closeModal();
+  toast(`${b.name} bought for ${money(cost)}.`, "good");
+  flyTo(8, -2, 1.3);
+  renderAll(); checkLevel();
 }
 
 function runDrill(key) {
   if (S.drill) return;
   const d = DRILLS[key];
+  if (d.needs && !procDone(d.needs)) { toast(`Finish ${PROCS[d.needs].name.toLowerCase()} before testing.`, "warn"); return; }
   S.drill = { key, t: 0, dur: 4.2, result: d.test(C()) };
   if (key !== "blip") learn("n1");
   toast(`Drill: ${d.desc}`, "warn");
@@ -1112,56 +1408,86 @@ function runDrill(key) {
 function finishDrill() {
   const { key, result } = S.drill; S.drill = null;
   if (result.ok) S.passed[key] = true;
-  else S.uptime = Math.max(95, S.uptime - 0.05);
+  else { (S.failed = S.failed || {})[key] = true; S.uptime = Math.max(95, S.uptime - 0.05); }
   const d = DRILLS[key], fix = !result.ok && result.fix && ITEMS[result.fix] ? result.fix : null;
   showModal(`
     <div class="eyebrow">Drill · ${d.name}</div>
     <h2>${result.ok ? "Passed" : "Failed. Now you know what to fix."}</h2>
     <div class="result ${result.ok ? "pass" : "fail"}"><div class="ico-tile">${result.ok ? ICON.checkL : ICON.alert}</div><div><b>${esc(d.desc)}</b><p>${esc(result.text)}</p></div></div>
-    ${fix ? `<p class="lead">Fix: build a <b>${ITEMS[fix].name}</b>, then run the drill again.</p>` : ""}
+    ${fix ? `<p class="lead">Fix: add a <b>${ITEMS[fix].name}</b>, then run the drill again.</p>` : ""}
     <div class="foot">${fix ? `<button class="btn ghost lg" data-act="showItem" data-k="${fix}">Show ${ITEMS[fix].name}</button>` : ""}<button class="btn primary lg" data-act="closeModal">Continue</button></div>`);
   renderAll();
-  checkLevel();
 }
 
+const objList = L => L.objectives.filter(o => !o.when || o.when());
 function objDone(o) {
   if (o.drill) return !!S.passed[o.drill];
+  if (o.proc) return procDone(o.proc);
   if (o.prog) { const [a, b] = o.prog(); return a >= b; }
   return o.done();
 }
 function checkLevel() {
-  const L = LEVELS[S.level - 1];
-  if (S.completed || S.levelShown === S.level || !L.objectives.every(objDone)) return;
+  const L = LEVELS[S.level];
+  if (S.completed || S.levelShown === S.level || !objList(L).every(objDone)) return;
   if ($("#modalRoot").firstChild) return; // re-checked when the open dialog closes
   S.levelShown = S.level;
-  const last = S.level === LEVELS.length, next = LEVELS[S.level];
+  const last = S.level === LEVELS.length - 1, next = LEVELS[S.level + 1];
   setTimeout(() => showModal(`
-    <div class="eyebrow">Level ${L.n} complete · ${L.tier}</div>
-    <h2>${last ? "Your AI campus is running" : `${L.name} complete`}</h2>
-    <p class="lead">${last ? "You've grown a server closet into a megawatt AI campus. Real operators take the same path, one constraint at a time." : `Your ${L.name.toLowerCase()} now meets ${L.tier}. Next up: <b>${next.name}</b>.`}</p>
+    <div class="eyebrow">${L.n ? `Level ${L.n} complete · ${L.tier}` : "Planning complete"}</div>
+    <h2>${last ? "Your AI campus is running" : L.n ? `${L.name} complete` : "You own a site. Time to build."}</h2>
+    <p class="lead">${last ? "You've grown a server closet into a megawatt AI campus. Real operators take the same path, one constraint at a time." : `Next up: <b>${next.name}</b> (${next.tier}).`}</p>
     <div class="concept lesson-body"><h4>What you learned</h4><ul class="learned">${L.learned.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
-    ${last ? "" : `<p class="lead">Investors add <b>${money(next.grant)}</b> to your budget for level ${S.level + 1}.</p>`}
-    <div class="foot">${last ? `<button class="btn primary lg" data-act="sandbox">Keep running the campus</button>` : `<button class="btn primary lg" data-act="nextLevel">Start level ${S.level + 1}: ${next.name}</button>`}</div>`), 700);
+    ${last ? "" : `<p class="lead">Investors add <b>${money(next.grant)}</b> to your budget.</p>`}
+    <div class="foot">${last ? `<button class="btn primary lg" data-act="sandbox">Keep running the campus</button>` : `<button class="btn primary lg" data-act="nextLevel">Start level ${next.n}: ${next.name}</button>`}</div>`), 500);
 }
 function startLevel(lv) {
   S.level = lv;
-  const L = LEVELS[lv - 1];
-  if (lv > 1) S.budget += L.grant;
+  const L = LEVELS[lv];
+  if (lv > 0) S.budget += L.grant;
   learn(L.concept);
+  if (lv === 1) learn("jci");
   flyTo(L.camera.x, L.camera.z, L.camera.zoom);
   if (lv >= 2) { crews.forEach(c => c.g.visible = true); learn("remote"); }
   S.nextIncident = S.t + 30;
   S.selected = null;
   invalidate();
   const c = CONCEPTS[L.concept];
+  const note = lv === 0 ? "Each step teaches one part of the process. Hover anything on the map to see what it is. Figures are illustrative and simplified for play."
+    : lv === 1 ? "Build cards show who makes each part: <b>JCI</b>, <b>JCI option</b> (pick JCI or another vendor) or <b>Non-JCI</b>. Use the JCI filter to see Johnson Controls parts."
+    : "From now on, racks occasionally fail. Click an alert pin to send a technician.";
   showModal(`
-    <div class="eyebrow">Level ${L.n} of ${LEVELS.length} · ${L.tier}</div>
+    <div class="eyebrow">${lv ? `Level ${L.n} of ${LEVELS.length - 1} · ${L.tier}` : "Getting started"}</div>
     <h2>${L.name}</h2>
     <p class="lead">${esc(L.story)}</p>
     <div class="concept"><div class="lesson-top" style="margin-bottom:8px"><span class="part-ico">${ICON[c.icon]}</span><div><div class="eyebrow">Key idea</div><h3 style="margin:0;font-size:15px">${c.name}</h3></div></div>${lessonBody(c)}</div>
-    ${lv === 1 ? `<p class="note">The build bar marks your next step. Hover anything on the map to see what it is. Numbers are simplified for play; real projects are sized by engineering studies.</p>` : `<p class="note">From now on, racks occasionally fail. Click an alert pin to send a technician.</p>`}
-    <div class="foot"><button class="btn primary lg" data-act="closeModal">${lv === 1 ? "Start building" : "Let's go"}</button></div>`);
+    <p class="note">${note}</p>
+    <div class="foot"><button class="btn primary lg" data-act="closeModal">${lv === 0 ? "Start planning" : "Let's go"}</button></div>`);
   renderAll();
+}
+function showSiteModal() {
+  showModal(`
+    <div class="eyebrow">Step 1 · Site selection</div>
+    <h2>Where will you build?</h2>
+    <p class="lead">Every market trades off power price, climate, fiber, water and what customers will pay. Your choice affects the whole game. Figures are illustrative.</p>
+    <div class="choices">${Object.entries(SITES).map(([k, s]) => `
+      <div class="choice"><div><div class="eyebrow">${s.tag}</div><h3>${s.name}</h3></div>
+        <dl>${s.facts.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("")}</dl>
+        <p class="pro">+ ${esc(s.plus)}</p><p class="con">− ${esc(s.minus)}</p>
+        <button class="btn primary" data-act="chooseSite" data-k="${k}">Build here</button></div>`).join("")}</div>
+    <div class="foot"><button class="btn ghost lg" data-act="closeModal">Decide later</button></div>`, true);
+}
+function showBuildingModal() {
+  showModal(`
+    <div class="eyebrow">Buy a building · ${site().name}</div>
+    <h2>Retrofit or build new?</h2>
+    <p class="lead">A hangar or warehouse is fast and cheap but needs work before racks go in. A purpose-built hall costs more and takes longer to permit. Prices include local land costs.</p>
+    <div class="choices three">${Object.entries(BUILDINGS).map(([k, b]) => {
+      const cost = Math.round(b.cost * site().land / 1000) * 1000;
+      return `<div class="choice"><div><div class="eyebrow">${money(cost)} · permit ${b.permit} days</div><h3>${b.name}</h3></div>
+        <ul class="pc">${b.pros.map(x => `<li class="pro">+ ${esc(x)}</li>`).join("")}${b.cons.map(x => `<li class="con">− ${esc(x)}</li>`).join("")}</ul>
+        <button class="btn primary" data-act="buyBuilding" data-k="${k}" ${S.budget < cost ? "disabled" : ""}>${S.budget < cost ? "Can't afford" : "Buy"}</button></div>`;
+    }).join("")}</div>
+    <div class="foot"><button class="btn ghost lg" data-act="closeModal">Decide later</button></div>`, true);
 }
 
 /* incidents (levels 2+) */
@@ -1170,6 +1496,7 @@ const INC = {
   psu: { label: "PSU failure", sev: "bad", detail: () => "Server running on its B feed only" },
   link: { label: "Link flapping", sev: "warn", detail: () => "Top-of-rack switch uplink" },
 };
+const SLA = () => n("bms") ? 70 : 45;
 function spawnIncident() {
   if (S.incidents.length >= 2) return;
   const cand = racks.filter(r => r.built && !r.incident);
@@ -1181,7 +1508,8 @@ function spawnIncident() {
   inc.pin = makePin(SEV[inc.sev]); inc.pin.position.set(rack.x, 2.4, rack.z);
   inc.pin.userData.hit.forEach(h => h.userData.incident = inc);
   rack.incident = inc; S.incidents.push(inc);
-  toast(`${rack.id}: ${type.label.toLowerCase()}. Click the pin to send a technician.`, inc.sev);
+  const bmsName = n("bms") ? (S.picks.bms?.[0] === 0 ? "Metasys" : "The BMS") : null;
+  toast(`${bmsName ? bmsName + " flagged " : ""}${rack.id}: ${type.label.toLowerCase()}. Click the pin to send a technician.`, inc.sev);
 }
 function dispatch(inc) {
   if (!inc || inc.state !== "open") return;
@@ -1208,12 +1536,15 @@ let ledClock = 0, ledTick = 0;
 function simulate(dt) {
   S.t += dt; S.clock += dt;
   const c = C();
-  // revenue: $12 per kW of IT per second of play
+  // economics: customers pay per kW of IT; the utility bills facility power (IT × PUE)
   const down = S.drill && !S.drill.result.ok && S.drill.t > 0.8;
-  S.rate = down ? 0 : c.it * 12;
+  S.rev = down ? 0 : c.it * 16 * site().rev;
+  S.bill = c.facility * c.price * 60;
+  S.rate = S.rev - S.bill;
   S.budget += S.rate * dt;
+  tickTasks(dt);
   if (S.level >= 2 && S.t > S.nextIncident && !S.drill) { spawnIncident(); S.nextIncident = S.t + rand(22, 34); }
-  for (const inc of S.incidents) if (!inc.breached && inc.state !== "repairing" && S.t - inc.t0 > 45) {
+  for (const inc of S.incidents) if (!inc.breached && inc.state !== "repairing" && S.t - inc.t0 > SLA()) {
     inc.breached = true; inc.sev = "bad"; inc.pin.userData.mat.color.setHex(SEV.bad); S.uptime = Math.max(95, S.uptime - 0.01);
     toast(`${inc.rack.id} waited too long. Uptime took a hit.`, "bad");
   }
@@ -1264,10 +1595,11 @@ function updateLeds(dt) {
    ===================================================================== */
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 const EXTRA_INFO = {
-  hallB: { name: "Hall B", what: "Your building, shown as a cutaway so you can see inside. Racks stand in rows; the blue floor marks the cold aisles in front of them." },
-  fuel: { name: "Fuel tank", what: "Diesel for the generators. Tier III sites keep at least 12 hours of fuel on site; many keep 24–48." },
-  truck: { name: "Delivery truck", what: "Big equipment arrives by truck. Lead times run from weeks for racks to years for large transformers." },
-  crew: { name: "Technician", what: "Remote hands: on-site staff who fix hardware. Click an alert pin to send one." },
+  hallB: () => ({ name: `Hall 1 (${bld().name.toLowerCase()})`, what: "Your building, shown as a cutaway so you can see inside. Racks stand in rows; the blue floor marks the cold aisles in front of them." }),
+  fuel: () => ({ name: "Fuel tank", what: "Diesel for the generators. Tier III sites keep at least 12 hours of fuel on site; many keep 24–48." }),
+  truck: () => ({ name: "Delivery truck", what: "Big equipment arrives by truck. Lead times run from weeks for racks to years for large transformers." }),
+  crew: () => ({ name: "Technician", what: "Remote hands: on-site staff who fix hardware. Click an alert pin to send one." }),
+  lot: () => ({ name: "Empty lot", what: S.site ? "Your future campus. Buy a building to start." : "Choose a location to start your data center." }),
 };
 function visibleChain(o) { while (o) { if (!o.visible) return false; o = o.parent; } return true; }
 function hit(e) {
@@ -1296,8 +1628,10 @@ canvas.addEventListener("pointermove", e => {
       <div class="row"><span>Draw</span><span>${r.kw} kW</span></div><div class="row"><span>Inlet air</span><span>${inc?.key === "hot" ? "31" : r.inlet.toFixed(1)}°C</span></div>
       ${inc ? `<div class="row"><span>Alert</span><span>${inc.type.label}</span></div><div class="hint">${inc.state === "open" ? "Click to send a technician" : inc.crew.name.split(" ")[0] + " is on it"}</div>` : `<div class="hint">Click to read about racks</div>`}`;
   } else {
-    const k = h.info.key, it = ITEMS[k] || EXTRA_INFO[k];
-    html = `<b>${it.name}</b>${ITEMS[k] ? `<div class="row"><span>Spec</span><span>${it.spec}</span></div>` : ""}<p>${esc(it.what)}</p>${ITEMS[k] ? `<div class="hint">Click for the full lesson</div>` : ""}`;
+    const k = h.info.key, it = ITEMS[k], x = it || EXTRA_INFO[k]();
+    const picks = S.picks[k];
+    const title = it?.options && picks?.length ? [...new Set(picks.map(i => it.options[i].name))].join(" + ") : x.name;
+    html = `<b>${esc(title)}</b>${it ? ` ${brandTag(k, picks)}<div class="row"><span>Spec</span><span>${it.spec}</span></div>` : ""}<p>${esc(x.what)}</p>${it ? `<div class="hint">Click for the full lesson</div>` : ""}`;
   }
   tip.innerHTML = html;
   const b = wrap.getBoundingClientRect();
@@ -1318,6 +1652,7 @@ canvas.addEventListener("pointerup", e => {
     if (h.rack.incident && h.rack.incident.state === "open") { dispatch(h.rack.incident); renderAll(); }
     else selectItem(h.rack.gpu ? "gpu" : "rack");
   } else if (ITEMS[h.info.key]) selectItem(h.info.key);
+  else if (h.info.key === "lot" && !S.site) startProc("site");
 });
 
 let camAnim = null;
@@ -1326,37 +1661,47 @@ function rotateView(a) { const off = camera.position.clone().sub(controls.target
 
 function selectItem(k) {
   S.selected = k;
-  if (S.cat !== "All" && ITEMS[k] && ITEMS[k].cat !== S.cat) S.cat = "All";
+  if (S.cat !== "All" && ITEMS[k] && !catMatch(k, S.cat)) S.cat = "All";
   renderAll();
   document.querySelector(`.bcard[data-k="${k}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: REDUCED ? "auto" : "smooth" });
 }
+function selectProc(k) {
+  if (PROCS[k].modal && !procBlocker(k)) { startProc(k); return; }
+  S.selected = "proc:" + k; renderAll();
+}
+const catMatch = (k, cat) => cat === "All" || (cat === "JCI" ? ITEMS[k].jci !== "no" : ITEMS[k].cat === cat);
 
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-act]"); if (!el) return;
-  const a = el.dataset.act;
+  const a = el.dataset.act, k = el.dataset.k;
   if (a === "zoomin" || a === "zoomout") { camera.zoom = clamp(camera.zoom * (a === "zoomin" ? 1.25 : 0.8), controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); }
   else if (a === "rotl") rotateView(Math.PI / 4);
   else if (a === "rotr") rotateView(-Math.PI / 4);
-  else if (a === "home") { const L = S.completed ? { x: 2, z: -2, zoom: 0.85 } : LEVELS[S.level - 1].camera; camera.position.copy(controls.target).add(CAM_OFFSET); flyTo(L.x, L.z, L.zoom); }
-  else if (a === "item") selectItem(el.dataset.k);
-  else if (a === "build") build(el.dataset.k);
+  else if (a === "home") { const L = S.completed ? { x: 2, z: -2, zoom: 0.85 } : LEVELS[S.level].camera; camera.position.copy(controls.target).add(CAM_OFFSET); flyTo(L.x, L.z, L.zoom); }
+  else if (a === "item") selectItem(k);
+  else if (a === "proc") selectProc(k);
+  else if (a === "startProc") startProc(k);
+  else if (a === "opt") { S.choice[k] = +el.dataset.i; }
+  else if (a === "build") build(k);
   else if (a === "closeLesson") S.selected = null;
   else if (a === "tab") S.tab = el.dataset.tab;
   else if (a === "alerts") S.tab = "alerts";
   else if (a === "cat") S.cat = el.dataset.cat;
-  else if (a === "drill") runDrill(el.dataset.k);
+  else if (a === "drill") runDrill(k);
   else if (a === "dispatch") dispatch(S.incidents.find(i => i.id === el.dataset.id));
+  else if (a === "chooseSite") chooseSite(k);
+  else if (a === "buyBuilding") buyBuilding(k);
   else if (a === "closeModal") closeModal();
-  else if (a === "showItem") { closeModal(); selectItem(el.dataset.k); }
+  else if (a === "showItem") { closeModal(); selectItem(k); }
   else if (a === "nextLevel") { closeModal(); startLevel(S.level + 1); }
   else if (a === "sandbox") { closeModal(); S.completed = true; flyTo(2, -2, 0.85); }
-  else if (a === "hintGo") { const h = nextHint(); if (h?.key) selectItem(h.key); else if (h?.drill) runDrill(h.drill); }
+  else if (a === "hintGo") { const h = nextHint(); if (h?.kind === "item") selectItem(h.key); else if (h?.kind === "proc") selectProc(h.key); else if (h?.kind === "drill") runDrill(h.key); }
   renderAll();
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if ($("#modalRoot").firstChild) closeModal(); else { S.selected = null; renderAll(); } } });
 
-function showModal(html) {
-  $("#modalRoot").innerHTML = `<div class="scrim"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
+function showModal(html, wide) {
+  $("#modalRoot").innerHTML = `<div class="scrim"><div class="modal ${wide ? "wide" : ""}" role="dialog" aria-modal="true">${html}</div></div>`;
   $("#modalRoot .modal .btn.primary")?.focus();
 }
 function closeModal() { $("#modalRoot").innerHTML = ""; checkLevel(); }
@@ -1366,37 +1711,72 @@ function closeModal() { $("#modalRoot").innerHTML = ""; checkLevel(); }
    ===================================================================== */
 function setHTML(el, html) { if (el._h !== html) { el._h = html; el.innerHTML = html; } }
 const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
+function brandTag(k, picks) {
+  const it = ITEMS[k];
+  if (picks?.length && it.options) return [...new Set(picks.map(i => it.options[i].jci))].map(j => `<span class="brand ${j ? "jci" : ""}">${j ? "JCI" : "Non-JCI"}</span>`).join(" ");
+  return it.jci === "yes" ? `<span class="brand jci">JCI</span>` : it.jci === "option" ? `<span class="brand jci">JCI option</span>` : `<span class="brand">Non-JCI</span>`;
+}
 function lessonBody(x) {
-  return `<div class="lesson-body"><h4>What it is</h4><p>${esc(x.what)}</p>${x.why ? `<h4>Why you need it</h4><p>${esc(x.why)}</p>` : ""}${x.nums ? `<h4>Real-world numbers</h4><ul>${x.nums.map(v => `<li>${esc(v)}</li>`).join("")}</ul>` : ""}</div>`;
+  return `<div class="lesson-body"><h4>What it is</h4><p>${esc(x.what)}</p>${x.why ? `<h4>Why it matters</h4><p>${esc(x.why)}</p>` : ""}${x.nums ? `<h4>Real-world numbers</h4><ul>${x.nums.map(v => `<li>${esc(v)}</li>`).join("")}</ul>` : ""}${x.vendors ? `<h4>Who makes it</h4><p>${esc(x.vendors)}</p>` : ""}</div>`;
+}
+const lc = s => s.charAt(0).toLowerCase() + s.slice(1);
+/* Walk the dependency chain to the first thing you can actually do */
+function actionFor(kind, k, depth = 0) {
+  if (depth > 6 || !k) return null;
+  if (kind === "proc") {
+    if (procDone(k)) return null;
+    if (procRunning(k)) return { wait: k };
+    const b = procBlocker(k);
+    if (b?.needProc) return actionFor("proc", b.needProc, depth + 1) || { wait: b.needProc };
+    return { kind: "proc", key: k, why: b?.money ? "You're saving up for it." : "" };
+  }
+  const b = blocker(k);
+  if (!b || b.lock) return { kind: "item", key: k };
+  if (b.needProc) { const a = actionFor("proc", b.needProc, depth + 1); if (!a) return { kind: "item", key: k }; return a.wait ? a : { ...a, why: `${ITEMS[k].name}: ${lc(b.why)}.` }; }
+  if (b.money) return { kind: "item", key: k, why: "You're saving up for it; your racks earn while you wait." };
+  if (b.need && b.need !== k) { const a = actionFor("item", b.need, depth + 1); return a && !a.wait && !a.why ? { ...a, why: `${ITEMS[k].name}: ${lc(b.why)}.` } : a; }
+  return { kind: "item", key: k, why: b.why + "." };
 }
 function nextHint() {
-  const L = LEVELS[S.level - 1];
-  const o = L.objectives.find(o => !objDone(o));
-  if (!o) return null;
-  if (o.drill) return { drill: o.drill, text: `Everything's in place. Run the <b>${DRILLS[o.drill].name.toLowerCase()}</b> drill to prove your design works.`, label: "Run drill" };
-  let k = o.hint, why = "";
-  for (let guard = 0; k && guard < 4; guard++) {
-    const b = blocker(k);
-    if (!b || b.lock) break;
-    if (b.money) { why = `You're saving up for it; your racks earn while you wait.`; break; }
-    if (!b.need || b.need === k) { why = b.why + "."; break; }
-    why = `${ITEMS[k].name}: ${b.why.charAt(0).toLowerCase() + b.why.slice(1)}.`;
-    k = b.need;
+  const L = LEVELS[S.level];
+  let waiting = null;
+  for (const o of objList(L)) {
+    if (objDone(o)) continue;
+    let a;
+    if (o.drill) {
+      const d = DRILLS[o.drill];
+      if (d.needs && !procDone(d.needs)) a = actionFor("proc", d.needs);
+      else {
+        // if the design would fail and the player already saw it fail, point at the fix instead
+        const r = d.test(C());
+        a = !r.ok && r.fix && S.failed?.[o.drill] && ITEMS[r.fix] && !blocker(r.fix)?.lock ? { ...(actionFor("item", r.fix) || {}), why: r.text } : { kind: "drill", key: o.drill };
+      }
+    }
+    else if (o.proc) a = actionFor("proc", o.proc);
+    else a = actionFor("item", typeof o.hint === "function" ? o.hint() : o.hint);
+    if (!a) continue;
+    if (a.wait) { waiting = waiting || a.wait; continue; }
+    const why = a.why ? esc(a.why) + " " : "";
+    if (a.kind === "drill") return { ...a, text: `Everything's in place. Run the <b>${DRILLS[a.key].name.toLowerCase()}</b> drill to prove your design works.`, label: "Run drill" };
+    if (a.kind === "proc") return { ...a, text: `${why}Next: <b>${PROCS[a.key].name}</b>, toward “${esc(o.label)}”.`, label: PROCS[a.key].modal ? "Open" : "Read and start" };
+    return { ...a, text: `${why}Build a <b>${ITEMS[a.key].name}</b> to work toward “${esc(o.label)}”.`, label: `Show ${ITEMS[a.key].name}` };
   }
-  if (!k) return { text: esc(o.label) };
-  return { key: k, text: `${why ? esc(why) + " " : ""}Build a <b>${ITEMS[k].name}</b> to work toward “${esc(o.label)}”.`, label: `Show ${ITEMS[k].name}` };
+  if (waiting) return { text: `Waiting for <b>${PROCS[waiting].name}</b> to finish. Real projects run several of these in parallel.` };
+  return null;
 }
 
 function renderAll() {
   invalidate();
   const c = C();
-  const L = LEVELS[S.level - 1];
+  const L = LEVELS[S.level];
   setHTML($("#levels"), LEVELS.map((l, i) => {
     const done = l.n < S.level || (S.completed && l.n === S.level);
-    return `${i ? '<span class="lvl-sep"></span>' : ""}<span class="lvl ${done ? "done" : l.n === S.level ? "now" : ""}" title="Level ${l.n}: ${l.name}"><i>${done ? ICON.check : l.n}</i><span>${l.name}</span></span>`;
+    return `${i ? '<span class="lvl-sep"></span>' : ""}<span class="lvl ${done ? "done" : l.n === S.level ? "now" : ""}" title="${l.n ? "Level " + l.n : "Start"}: ${l.name}"><i>${done ? ICON.check : l.n || ICON.map}</i><span>${l.name}</span></span>`;
   }).join(""));
   $("#budget").textContent = money(S.budget);
-  $("#rate").textContent = S.rate ? `+${money(S.rate * 60)}/h` : "Not earning yet";
+  const rate = $("#rate");
+  rate.textContent = S.rev ? `${S.rate >= 0 ? "+" : "−"}${money(Math.abs(S.rate * 60))}/h profit` : S.site ? `Not earning yet · ${site().name.split(",")[0]}` : "Not earning yet";
+  rate.classList.toggle("neg", S.rate < 0);
   $("#clock").textContent = hhmm(S.clock);
   const outage = S.drill && DRILLS[S.drill.key].power && S.drill.t > 0.3;
   $("#live").classList.toggle("outage", !!outage);
@@ -1411,70 +1791,103 @@ function renderAll() {
     kpi("snow", "Cooling", c.air ? Math.round(coolPct) + "%" : "–", c.air ? "used" : "", c.air ? `${kw(c.airHeat)} heat · ${kw(c.air)} air${c.liquid ? ` · ${kw(c.liquid)} liquid` : ""}` : "no cooling yet", coolPct > 95 ? "bad" : coolPct > 80 ? "warn" : ""),
     kpi("battery", "Backup power", backup, "", `${c.ups ? "UPS " + kw(c.ups) : "no UPS"} · ${n("gen") ? n("gen") + " gen" : "no generator"}`, !c.ups && c.it ? "warn" : ""),
     kpi("gauge", "PUE", c.pue ? c.pue.toFixed(2) : "–", "", c.pue ? (c.pue >= 1.8 ? "closet-grade" : c.pue >= 1.45 ? "enterprise-grade" : c.pue > 1.25 ? "efficient" : "hyperscale-grade") : "facility ÷ IT power", ""),
+    kpi("wallet", "Profit", S.rev ? (S.rate < 0 ? "−" : "") + money(Math.abs(S.rate * 60)) : "–", S.rev ? "/h" : "", S.rev ? `revenue ${money(S.rev * 60)} − power ${money(S.bill * 60)}` : `power ${S.site ? "$" + c.price.toFixed(3) + "/kWh" : "price set by location"}`, S.rate < 0 ? "bad" : ""),
   ].join(""));
 
-  setHTML($("#buildHead"), `<b>Build</b>` + CATS.map(k => `<button class="cat" data-act="cat" data-cat="${k}" aria-pressed="${S.cat === k}">${k}</button>`).join(""));
+  setHTML($("#buildHead"), `<b>Build</b>` + CATS.map(k => `<button class="cat ${k === "JCI" ? "jcicat" : ""}" data-act="cat" data-cat="${k}" aria-pressed="${S.cat === k}">${k}</button>`).join(""));
   const hint = S.completed ? null : nextHint();
-  setHTML($("#cards"), ORDER.filter(k => S.cat === "All" || ITEMS[k].cat === S.cat).map(k => {
+  setHTML($("#cards"), ORDER.filter(k => catMatch(k, S.cat)).map(k => {
     const it = ITEMS[k], b = blocker(k), lockLvl = it.level > S.level;
-    const count = k === "rack" ? `${rackCount()}/${LEVELS[S.level - 1].rackCap}` : it.max > 1 ? `${n(k)}/${it.max}` : "";
+    const count = k === "rack" ? `${rackCount()}/${LEVELS[S.level].rackCap}` : it.max > 1 ? `${n(k)}/${it.max}` : "";
     const st = lockLvl ? `<span class="st lock">Level ${it.level}</span>` : !b ? `<span class="st ok">Ready</span>`
-      : b.built ? `<span class="st lock">Built</span>` : b.lock ? `<span class="st lock">Full</span>` : b.money ? `<span class="st no">Saving up</span>` : `<span class="st no">Needs ${b.need ? ITEMS[b.need].name.toLowerCase() : "more"}</span>`;
-    return `<button class="bcard ${lockLvl ? "locked" : ""} ${hint?.key === k ? "hint" : ""}" data-act="item" data-k="${k}" aria-pressed="${S.selected === k}">
-      <span class="top"><span class="part-ico">${ICON[it.icon]}</span><span class="cost">${money(it.cost)}</span></span>
-      <b>${it.name}</b><small>${it.spec}${count ? " · " + count : ""}</small>${st}</button>`;
+      : b.built ? `<span class="st lock">Built</span>` : b.lock ? `<span class="st lock">Full</span>` : b.money ? `<span class="st no">Saving up</span>`
+      : `<span class="st no">Needs ${b.needProc ? PROCS[b.needProc].name.toLowerCase() : b.need ? ITEMS[b.need].name.toLowerCase() : "more"}</span>`;
+    return `<button class="bcard ${lockLvl ? "locked" : ""} ${hint?.kind === "item" && hint.key === k ? "hint" : ""}" data-act="item" data-k="${k}" aria-pressed="${S.selected === k}">
+      <span class="top"><span class="part-ico">${ICON[it.icon]}</span><span class="cost">${it.options ? "from " : ""}${money(it.options ? Math.min(...it.options.map((_, i) => costOf(k, i))) : costOf(k))}</span></span>
+      <b>${it.name}</b><small>${it.spec}${count ? " · " + count : ""}</small><span class="row2">${brandTag(k)}${st}</span></button>`;
   }).join(""));
 
-  const lesson = $("#lesson");
-  if (S.selected && ITEMS[S.selected]) {
+  renderLesson();
+  renderSide(c, L, hint, open);
+  document.querySelectorAll("[data-prog]").forEach(el => { const t = S.tasks[el.dataset.prog]; el.style.width = t ? Math.min(100, t.t / t.dur * 100) + "%" : "0"; });
+}
+function renderLesson() {
+  const lesson = $("#lesson"), sel = S.selected;
+  if (sel && sel.startsWith("proc:")) {
+    const k = sel.slice(5), p = PROCS[k], b = procBlocker(k), t = S.tasks[k];
     lesson.hidden = false;
-    const k = S.selected, it = ITEMS[k], b = blocker(k);
-    const needBtn = b && b.need && b.need !== k && ITEMS[b.need] ? `<button class="btn ghost" data-act="item" data-k="${b.need}">Show ${ITEMS[b.need].name}</button>` : "";
-    setHTML(lesson, `<div class="lesson-top"><span class="part-ico">${ICON[it.icon]}</span><div><div class="eyebrow">${it.cat} · Level ${it.level}</div><h3>${it.name}</h3></div><button class="x" data-act="closeLesson" aria-label="Close lesson">${ICON.x}</button></div>
-      <div class="specs">${chip("info", it.spec)}${chip("idle", money(it.cost))}${it.max > 1 ? chip("idle", `${n(k)} of ${it.max} built`) : ""}</div>
-      ${lessonBody(it)}
+    setHTML(lesson, `<div class="lesson-top"><span class="part-ico">${ICON[p.icon]}</span><div><div class="eyebrow">Process${p.level ? " · Level " + p.level : ""}</div><h3>${p.name}</h3></div><button class="x" data-act="closeLesson" aria-label="Close lesson">${ICON.x}</button></div>
+      <div class="specs">${procCost(k) ? chip("idle", money(procCost(k))) : ""}${procDur(k) ? chip("idle", `takes ${procDur(k)} s`) : ""}</div>
+      ${lessonBody(p)}
+      ${t && !t.done ? `<div class="bar"><i data-prog="${k}"></i></div>` : ""}
+      <div class="lesson-foot"><span class="why ${b && !b.lock ? "" : "ok"}" id="lessonWhy"></span>
+      ${b?.needProc ? `<button class="btn ghost" data-act="proc" data-k="${b.needProc}">${PROCS[b.needProc].name}</button>` : ""}
+      ${procDone(k) ? chip("good", "Done") : `<button class="btn primary" data-act="startProc" data-k="${k}" ${b ? "disabled" : ""}>${p.modal ? "Open" : t ? "In progress" : "Start" + (procCost(k) ? " · " + money(procCost(k)) : "")}</button>`}</div>`);
+    $("#lessonWhy").textContent = procDone(k) ? "Completed." : b ? b.why + "." : "Ready to start.";
+  } else if (sel && ITEMS[sel]) {
+    lesson.hidden = false;
+    const k = sel, it = ITEMS[k], b = blocker(k), ci = S.choice[k] ?? 0;
+    const needBtn = b?.needProc ? `<button class="btn ghost" data-act="proc" data-k="${b.needProc}">${PROCS[b.needProc].name}</button>`
+      : b && b.need && b.need !== k && ITEMS[b.need] ? `<button class="btn ghost" data-act="item" data-k="${b.need}">Show ${ITEMS[b.need].name}</button>` : "";
+    const opts = it.options ? `<div class="lesson-body"><h4>Choose a product</h4></div><div class="opts">${it.options.map((o, i) => `
+      <button class="opt" data-act="opt" data-k="${k}" data-i="${i}" aria-pressed="${ci === i}"><span class="opt-top"><span class="brand ${o.jci ? "jci" : ""}">${o.jci ? "JCI" : "Non-JCI"}</span><span class="cost">${money(costOf(k, i))}</span></span><b>${o.name}</b><small>${esc(o.note)}${o.water && site().waterStress ? " Water is scarce here: +15% cost." : ""}</small></button>`).join("")}</div>` : "";
+    setHTML(lesson, `<div class="lesson-top"><span class="part-ico">${ICON[it.icon]}</span><div><div class="eyebrow">${it.cat} · Level ${it.level} · ${brandTag(k)}</div><h3>${it.name}</h3></div><button class="x" data-act="closeLesson" aria-label="Close lesson">${ICON.x}</button></div>
+      <div class="specs">${chip("info", it.spec)}${it.max > 1 ? chip("idle", `${n(k)} of ${it.max} built`) : ""}</div>
+      ${lessonBody(it)}${opts}
       <div class="lesson-foot"><span class="why ${b ? "" : "ok"}" id="lessonWhy"></span>${needBtn}
-      <button class="btn primary" data-act="build" data-k="${k}" ${b ? "disabled" : ""}>Build · ${money(it.cost)}</button></div>`);
+      <button class="btn primary" data-act="build" data-k="${k}" ${b ? "disabled" : ""}>Build · ${money(costOf(k))}</button></div>`);
     $("#lessonWhy").textContent = b ? b.why + "." : "Ready to build.";
   } else { lesson.hidden = true; lesson._h = ""; }
-
+}
+function renderSide(c, L, hint, open) {
   setHTML($("#tabs"), [["mission", "Mission", ""], ["handbook", "Handbook", S.learned.length], ["alerts", "Alerts", S.level >= 2 ? open : ""]]
     .map(([k, l, nn]) => `<button class="tab ${k === "alerts" && open ? "alert" : ""}" role="tab" aria-selected="${S.tab === k}" data-act="tab" data-tab="${k}">${l}${nn !== "" ? `<em>${nn}</em>` : ""}</button>`).join(""));
   let side = "";
   if (S.tab === "mission") {
-    const doneCount = L.objectives.filter(objDone).length;
-    side += `<div class="mission-head"><div class="eyebrow">Level ${L.n} of ${LEVELS.length}</div><h2>${L.name}</h2><p>${esc(L.story)}</p>
-      <div class="tierline">${chip("info", L.tier)}${chip(doneCount === L.objectives.length ? "good" : "idle", `${doneCount}/${L.objectives.length} goals`)}${chip(S.uptime >= 99.9 ? "good" : "warn", `Uptime ${S.uptime.toFixed(2)}%`)}</div></div>`;
+    const objs = objList(L), doneCount = objs.filter(objDone).length;
+    side += `<div class="mission-head"><div class="eyebrow">${L.n ? `Level ${L.n} of ${LEVELS.length - 1}` : "Getting started"}</div><h2>${L.name}</h2><p>${esc(L.story)}</p>
+      <div class="tierline">${chip("info", L.tier)}${chip(doneCount === objs.length ? "good" : "idle", `${doneCount}/${objs.length} goals`)}${S.site ? chip("idle", site().name) : ""}${S.building ? chip("idle", bld().name) : ""}${L.n >= 2 ? chip(S.uptime >= 99.9 ? "good" : "warn", `Uptime ${S.uptime.toFixed(2)}%`) : ""}</div></div>`;
     if (S.completed) side += `<div class="next done"><div class="eyebrow">Campus complete</div><p>You've finished every level. Keep the campus running: fix alerts, add capacity and rerun any drill.</p></div>`;
-    else if (hint) side += `<div class="next"><div class="eyebrow">Next step</div><p>${hint.text}</p>${hint.label ? `<button class="btn" data-act="hintGo" ${hint.drill && S.drill ? "disabled" : ""}>${hint.label}</button>` : ""}</div>`;
-    side += `<div><div class="sec-title">Goals <span>${L.tier}</span></div>${L.objectives.map(o => {
-      const d = objDone(o); let sub = "";
+    else if (hint) side += `<div class="next"><div class="eyebrow">Next step</div><p>${hint.text}</p>${hint.label ? `<button class="btn" data-act="hintGo" ${hint.kind === "drill" && S.drill ? "disabled" : ""}>${hint.label}</button>` : ""}</div>`;
+    side += `<div><div class="sec-title">Goals <span>${L.tier}</span></div>${objs.map(o => {
+      const d = objDone(o); let sub = "", extra = "";
       if (o.prog) { const [a, b] = o.prog(); sub = `${Math.min(a, b)} / ${b}${o.unit ? " " + o.unit : ""}`; }
       if (o.sub && !d) sub = o.sub();
-      return `<div class="obj ${d ? "done" : ""}"><span class="check">${d ? ICON.check : ""}</span><span class="grow"><span class="obj-label">${esc(o.label)}</span>${sub ? `<small>${esc(sub)}</small>` : ""}</span></div>`;
+      if (o.proc && !d) {
+        if (procRunning(o.proc)) { sub = "In progress"; extra = `<div class="bar"><i data-prog="${o.proc}"></i></div>`; }
+        else sub = `Process${procCost(o.proc) ? " · " + money(procCost(o.proc)) : ""}${procDur(o.proc) ? " · " + procDur(o.proc) + " s" : ""}`;
+      }
+      const btn = o.proc && !d && !procRunning(o.proc) ? `<button class="btn ghost sm" data-act="proc" data-k="${o.proc}">${PROCS[o.proc].modal ? "Open" : "Details"}</button>` : "";
+      return `<div class="obj ${d ? "done" : ""}"><span class="check">${d ? ICON.check : ""}</span><span class="grow"><span class="obj-label">${esc(o.label)}</span>${sub ? `<small>${esc(sub)}</small>` : ""}${extra}</span>${btn}</div>`;
     }).join("")}</div>`;
-    const drills = S.completed ? Object.keys(DRILLS) : L.objectives.filter(o => o.drill).map(o => o.drill);
-    side += `<div><div class="sec-title">Failure drills <span>test your design</span></div>${drills.map(k => {
-      const d = DRILLS[k];
-      return `<div class="drill"><span class="part-ico">${ICON[d.icon]}</span><span class="grow"><b>${d.name}</b><small>${d.desc}</small></span>${S.passed[k] ? chip("good", "Passed") : ""}<button class="btn ${S.passed[k] ? "ghost" : "primary"} sm" data-act="drill" data-k="${k}" ${S.drill ? "disabled" : ""}>${ICON.play} ${S.passed[k] ? "Rerun" : "Run"}</button></div>`;
+    const drills = S.completed ? Object.keys(DRILLS) : objs.filter(o => o.drill).map(o => o.drill);
+    if (drills.length) side += `<div><div class="sec-title">Failure drills <span>test your design</span></div>${drills.map(k => {
+      const d = DRILLS[k], gated = d.needs && !procDone(d.needs);
+      return `<div class="drill"><span class="part-ico">${ICON[d.icon]}</span><span class="grow"><b>${d.name}</b><small>${gated ? `Needs ${PROCS[d.needs].name.toLowerCase()}` : d.desc}</small></span>${S.passed[k] ? chip("good", "Passed") : ""}<button class="btn ${S.passed[k] ? "ghost" : "primary"} sm" data-act="drill" data-k="${k}" ${S.drill || gated ? "disabled" : ""}>${ICON.play} ${S.passed[k] ? "Rerun" : "Run"}</button></div>`;
     }).join("")}</div>`;
   } else if (S.tab === "handbook") {
-    side += `<p class="note">Everything you've built or met so far, newest first. Open an entry to review it.</p>`;
+    side += `<p class="note">Everything you've built, done or met so far, newest first.</p>`;
     side += `<div>${S.learned.slice().reverse().map(k => {
-      const x = ITEMS[k] || CONCEPTS[k];
-      return `<details class="hb"><summary><span class="part-ico">${ICON[x.icon]}</span>${x.name}<small>${ITEMS[k] ? ITEMS[k].cat : "Key idea"}</small></summary>${lessonBody(x)}</details>`;
+      const x = ITEMS[k] || CONCEPTS[k] || PROCS[k] || (k === "cx" ? CX : null); if (!x) return "";
+      const kind = ITEMS[k] ? `${ITEMS[k].cat}` : PROCS[k] ? "Process" : "Key idea";
+      const extra = ITEMS[k]?.options ? `<div class="lesson-body" style="padding-top:0"><h4>Products</h4><ul>${ITEMS[k].options.map(o => `<li><b>${o.name}</b> (${o.jci ? "JCI" : "non-JCI"}): ${esc(o.note)}</li>`).join("")}</ul></div>` : "";
+      return `<details class="hb"><summary><span class="part-ico">${ICON[x.icon]}</span><span>${x.name}</span>${ITEMS[k] ? brandTag(k) : ""}<small>${kind}</small></summary>${lessonBody(x)}${extra}</details>`;
     }).join("")}</div>`;
-    side += `<p class="note">Numbers are simplified for play. Real projects are sized by engineering studies and local codes.</p>`;
+    side += `<p class="note">Figures are illustrative and simplified for play. Product names are used for education; this game is not affiliated with Johnson Controls or any other vendor.</p>`;
   } else {
     if (S.level < 2) side += `<div class="empty">Alerts start at level 2, when technicians join your site.</div>`;
     else {
       side += open ? `<div>${S.incidents.map(i => `<div class="li"><span class="id">${i.rack.id}</span><span class="grow"><b style="color:${i.sev === "bad" ? "var(--bad)" : "var(--warn)"}">${i.type.label}</b><span class="sub">${esc(i.detail)}</span></span>${i.state === "open" ? (i.queued ? chip("idle", "Queued") : `<button class="btn primary sm" data-act="dispatch" data-id="${i.id}">Send tech</button>`) : chip("info", i.state === "repairing" ? `${i.crew.id} fixing` : `${i.crew.id} en route`)}</div>`).join("")}</div>`
         : `<div class="empty">No open alerts. Every rack is healthy.</div>`;
-      side += `<div><div class="sec-title">Technicians</div>${crews.map(cr => `<div class="li"><span class="part-ico" style="background:${cr.css};color:#fff;border-radius:50%;font-size:9.5px;font-weight:800">${cr.initials}</span><span class="grow"><b>${cr.name}</b><span class="sub">${{ idle: "Available", route: `Heading to ${cr.job?.rack.id}`, repair: `Fixing ${cr.job?.rack.id}`, return: "Returning" }[cr.state]}</span></span></div>`).join("")}</div>`;
+      side += `<div><div class="sec-title">Technicians <span>${n("bms") ? `BMS on: ${SLA()} s to respond` : `${SLA()} s to respond`}</span></div>${crews.map(cr => `<div class="li"><span class="part-ico" style="background:${cr.css};color:#fff;border-radius:50%;font-size:9.5px;font-weight:800">${cr.initials}</span><span class="grow"><b>${cr.name}</b><span class="sub">${{ idle: "Available", route: `Heading to ${cr.job?.rack.id}`, repair: `Fixing ${cr.job?.rack.id}`, return: "Returning" }[cr.state]}</span></span></div>`).join("")}</div>`;
     }
   }
   setHTML($("#sideBody"), side);
 }
+const CX = { name: "Commissioning levels", icon: "check2",
+  what: "A staged process that proves a data center works: L1 factory tests, L2 installation checks, L3 start-up, L4 functional tests, L5 integrated systems test.",
+  why: "Each level catches a different kind of mistake. Customers expect to see the L5 results before moving in.",
+  nums: ["Led by an independent commissioning agent", "Every test follows a written procedure", "Open issues are tracked to closure"] };
 function kpi(icon, label, val, unit, sub, cls) {
   return `<div class="kpi panel ${cls}"><div class="ico">${ICON[icon]}</div><div><label>${label}</label><div class="val">${val}${unit ? ` <small>${unit}</small>` : ""}</div><div class="sub">${sub}</div></div></div>`;
 }
@@ -1507,7 +1920,7 @@ function frame() {
   if (uiClock > 0.3) { uiClock = 0; renderAll(); }
   requestAnimationFrame(frame);
 }
-startLevel(1);
+startLevel(0);
 requestAnimationFrame(frame);
 })();
 </script>
