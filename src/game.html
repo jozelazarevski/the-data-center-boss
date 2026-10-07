@@ -99,7 +99,9 @@ svg { display: block; flex: none; }
 .tip p { margin: 4px 0 0; color: var(--muted); }
 .tip .hint { margin-top: 6px; color: var(--accent); font-weight: 700; }
 
-.toasts { position: absolute; z-index: 6; top: 92px; left: 50%; transform: translateX(-62%); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: max-content; max-width: calc(100% - 32px); }
+/* outside .app (next to #modalRoot) so toasts stay announced while a dialog makes .app inert; fixed, placed over the map, above the scrim.
+   --topbar-h is measured by layoutLesson() */
+.toasts { position: fixed; z-index: 25; top: calc(var(--topbar-h, 60px) + 92px); left: 50%; transform: translateX(-62%); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: max-content; max-width: calc(100% - 32px); }
 .toast { display: flex; align-items: center; gap: 9px; background: var(--ink); color: #fff; border-radius: 999px; padding: 8px 14px 8px 10px; font-weight: 600; font-size: 12.5px; box-shadow: var(--shadow); animation: tin .25s ease-out; }
 .toast i { width: 8px; height: 8px; border-radius: 50%; background: #6f8cff; flex: none; }
 .toast.good i { background: #3ddc97; } .toast.warn i { background: #f7b733; } .toast.bad i { background: #ff6b6b; }
@@ -291,6 +293,9 @@ svg { display: block; flex: none; }
   .kpi { min-width: 136px; padding: 9px 11px 9px 9px; }
   .levels .lvl span { display: none; }
   .lvl { padding: 5px; }
+  /* keep the stack right of the 420 px lesson card (16 + 420 + gap) so it never covers the card's close button, and below the map controls */
+  .toasts { top: calc(var(--topbar-h, 60px) + 212px); left: 460px; transform: none; align-items: flex-start; max-width: calc(100% - 812px); }
+  .toast { border-radius: 16px; }
 }
 @media (max-width: 900px) {
   body { overflow: auto; }
@@ -312,7 +317,8 @@ svg { display: block; flex: none; }
   .lesson { order: 2; }
   .build { order: 3; }
   .side-body { max-height: none; overflow: visible; }
-  .toasts { top: auto; bottom: 60px; transform: translateX(-50%); }
+  /* 60 px above the bottom of the map (topbar + 56vh, min 360 px), as seen with the page scrolled to the top */
+  .toasts { top: auto; bottom: calc(100vh - var(--topbar-h, 100px) - max(56vh, 360px) + 60px); left: 50%; transform: translateX(-50%); align-items: center; max-width: calc(100% - 32px); }
   .toast { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -344,7 +350,6 @@ svg { display: block; flex: none; }
         <button data-act="home" aria-label="Reset view"><span data-icon="home"></span></button>
       </div>
       <div class="tip" id="tip" hidden></div>
-      <div class="toasts" id="toasts" aria-live="polite"></div>
     </div>
 
     <section class="lesson panel" id="lesson" aria-live="polite" hidden></section>
@@ -360,6 +365,7 @@ svg { display: block; flex: none; }
     </aside>
   </main>
 </div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
 <div id="modalRoot"></div>
 <div id="boot" class="scrim" aria-live="polite"><div class="modal"><div class="eyebrow">Loading</div><h2>Setting up your campus…</h2><p class="lead">Fetching the 3D engine (about 600 kB).</p></div></div>
 
@@ -518,7 +524,7 @@ const ITEMS = {
     ],
     what: "A building management system (BMS) reads thousands of sensors (temperatures, flows, breaker states) and runs the control sequences for cooling plants. DCIM software adds rack-level power and capacity tracking.",
     why: "You can't run what you can't see. Alarms reach your technicians sooner, so failures get fixed before they turn into outages.",
-    nums: ["A mid-size data hall has thousands of monitored points", "BACnet and Modbus are the common protocols", "In this game: technicians get 70 s (Metasys) or 60 s (other BMS) to respond instead of 45 s, and storms and heat waves are forecast earlier"] },
+    nums: ["A mid-size data hall has thousands of monitored points", "BACnet and Modbus are the common protocols", "In this game: technicians get 70 s (Metasys) or 60 s (other BMS) to respond instead of 45 s, and Metasys forecasts operating events 25 s ahead instead of 12 s"] },
   chiller: { name: "Chiller", cat: "Cooling", level: 3, max: 6, icon: "snow", spec: "300 kW of cooling", jci: "option",
     options: [
       { name: "YORK YVAA air-cooled screw", jci: true, cost: 180000, f: 0.27, maint: 1, note: "JCI. Air-cooled, variable speed, no cooling-tower water. A common data center choice.",
@@ -665,7 +671,7 @@ const CONCEPTS = {
   pue: { name: "PUE and the power bill", icon: "gauge",
     what: "Power Usage Effectiveness = total facility power ÷ IT power. Your power bill is facility power × price, so PUE is money.",
     why: "At a PUE of 2.0, every watt for servers costs another watt of overhead. Watch the Profit card: better cooling raises it.",
-    nums: ["Server closets: about 2.0", "Enterprise average: about 1.5", "Hyperscale: 1.1–1.2", "In this game money and time are compressed: one real second is one game minute and prices are scaled for play, so compare bills rather than multiplying them"] },
+    nums: ["Server closets: about 2.0", "Enterprise average: about 1.5", "Hyperscale: 1.1–1.2", "In this game money and time are compressed: at normal speed one real second is one game minute, and prices are scaled for play, so compare bills rather than multiplying them"] },
   n1: { name: "N, N+1 and 2N", icon: "shield",
     what: "N is the capacity you need. N+1 adds one spare unit. 2N duplicates the entire system.",
     why: "Every component eventually fails or needs maintenance. Redundancy lets you lose or service one unit with no downtime.",
@@ -734,7 +740,7 @@ const LEVELS = [
   { n: 3, name: "Enterprise site", tier: "Tier III", concept: "tiers",
     story: "A bank wants to move in. Tier III means concurrently maintainable: any part can be taken out for service without stopping a rack (riding through any single failure is Tier IV). Make everything N+1, add a second network path, then prove it and get certified.",
     grant: 850000, rackCap: 30, camera: { x: 2, z: -3, zoom: 1.0 },
-    learned: ["Tier III means concurrently maintainable: N+1 everywhere", "Chilled water plants cut PUE: your target depends on the climate you chose", "Diverse fiber paths survive a cut cable", "Integrated testing proves the whole site, then certification proves it to customers", "Tier IV, not Tier III, promises to ride through any single failure."],
+    learned: ["Tier III means concurrently maintainable: N+1 everywhere", "Chilled water plants cut PUE: your target depends on the climate you chose", "Diverse fiber paths survive a cut cable", "Integrated testing proves the whole site, then certification proves it to customers", "Tier IV, not Tier III, promises to ride through any single failure"],
     objectives: [
       { label: "Run 24 racks", hint: "rack", prog: () => [rackCount(), 24] },
       { label: "Build a chilled water plant", hint: "chiller", prog: () => [n("chiller"), 2] },
@@ -1634,7 +1640,7 @@ function showLevelDone() {
     <p class="lead">${last ? "You've grown a server closet into a megawatt AI campus. Real operators take the same path, one constraint at a time." : `Next up: <b>${next.name}</b> (${next.tier}).`}</p>
     <div class="concept lesson-body"><h4>What you learned</h4><ul class="learned">${L.learned.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
     <p class="note">This level: spent ${money(S.spent - S.levelSpent0)} · PUE ${C().pue ? C().pue.toFixed(2) : "–"} · uptime ${S.uptime.toFixed(2)}%</p>
-    ${last ? `<div class="concept">${scorecardBody("h3")}</div>` : S.budget >= next.grant ? `<p class="lead">You're already funded for the next level.</p>` : `<p class="lead">Investors top your budget up to <b>${money(next.grant)}</b>.</p>`}
+    ${last ? `<div class="concept">${scorecardBody("h3")}</div>` : `<p class="lead">Investors guarantee at least <b>${money(next.grant)}</b> for the next level.</p>`}
     <div class="foot"><button class="btn ghost lg" data-act="${last ? "sandbox" : "nextLevel"}">Skip the check</button><button class="btn primary lg" data-act="quiz">Take the ${QUIZ[S.level].qs.length}-question check · up to ${money(QUIZ[S.level].bonus * QUIZ[S.level].qs.length)}</button></div>`, last, "levelDone");
 }
 
@@ -1795,9 +1801,9 @@ function startLevel(lv) {
   S.selected = null;
   invalidate();
   const c = CONCEPTS[L.concept];
-  const note = lv === 0 ? "Each step teaches one part of the process. Tap or hover anything on the map to see what it is. Figures are illustrative and simplified for play. Each second of play stands for about a project day."
+  const note = lv === 0 ? "Each step teaches one part of the process. Tap or hover anything on the map to see what it is. Figures are illustrative and simplified. Timings are compressed for play: a permit that takes a few seconds here takes months in reality."
     : lv === 1 ? "Build cards show who makes each part: <b>JCI</b>, <b>JCI option</b> (pick JCI or another vendor) or <b>Non-JCI</b>. Use the JCI filter to see Johnson Controls parts."
-    : "From now on, racks occasionally fail. Click an alert pin to send a technician.";
+    : "From now on, racks occasionally fail. Click an alert pin to send a technician before the alert goes overdue and costs SLA credits. Weather and grid events are forecast in the Mission panel: check your spare capacity when one is coming.";
   showModal(`
     <div class="eyebrow">${lv ? `Level ${L.n} of ${LEVELS.length - 1} · ${L.tier}` : "Getting started"}</div>
     <h2>${L.name}</h2>
@@ -2048,18 +2054,20 @@ function hit(e) {
   return { info: u.info };
 }
 const tip = $("#tip");
-/* hover: pointermove only records the last event; hoverTick() raycasts once per frame and rebuilds the tooltip only when its subject changed */
-let lastMove = null, tipKey = null;
-canvas.addEventListener("pointermove", e => { if (e.buttons) { tip.hidden = true; lastMove = null; return; } lastMove = e; });
-canvas.addEventListener("pointerleave", () => { tip.hidden = true; lastMove = null; tipKey = null; });
-function hoverTick() {
-  const e = lastMove; if (!e) return; lastMove = null;
+/* hover: pointermove only records the last event; hoverTick() raycasts once per frame and rebuilds the tooltip only when its subject or its live data changed.
+   hoverAt keeps the pointer's last position so hoverTick(true) (every UI tick) refreshes the tooltip while the pointer rests on something */
+let lastMove = null, hoverAt = null, tipKey = null;
+canvas.addEventListener("pointermove", e => { if (e.buttons) { tip.hidden = true; lastMove = hoverAt = null; return; } lastMove = hoverAt = e; });
+canvas.addEventListener("pointerleave", () => { tip.hidden = true; lastMove = hoverAt = null; tipKey = null; });
+function hoverTick(refresh = false) {
+  const e = lastMove || (refresh ? hoverAt : null); if (!e) return; lastMove = null;
   const h = hit(e);
   canvas.classList.toggle("pointing", !!(h && (h.rack || ITEMS[h.info?.key] || h.info?.key === "lot")));
   if (!h) { tip.hidden = true; tipKey = null; return; }
-  const ri = h.rack?.incident;
-  const key = h.incident ? h.incident.id + "|" + h.incident.state + "|" + (h.incident.crew?.id || "") + "|" + (h.rack.dryUntil > S.t)
-    : h.rack ? "r|" + h.rack.id + "|" + (ri ? ri.id + ri.state + (ri.crew?.id || "") : "") + "|" + (h.rack.dryUntil > S.t) :"i|" + h.info.key + "|" + (S.picks[h.info.key] || []).join(",");
+  // pins and racks both render the rack card, so both keys carry its volatile data: alert state and crew, inlet temperature, dry-out
+  const ri = h.rack?.incident, rackLive = h.rack ? "|" + (ri ? ri.id + ri.state + (ri.crew?.id || "") : "") + "|" + h.rack.inlet.toFixed(1) + "|" + (h.rack.dryUntil > S.t ? "dry" : "") : "";
+  const key = h.rack ? (h.incident ? "p|" : "r|") + h.rack.id + rackLive
+    : "i|" + h.info.key + "|" + (S.picks[h.info.key] || []).join(",") + (h.info.key === "lot" ? "|" + !!S.site + "|" + !!S.building : "");
   if (key !== tipKey) { tipKey = key; tip.innerHTML = tipHTML(h); }
   const b = wrap.getBoundingClientRect();
   let x = e.clientX - b.left + 14, y = e.clientY - b.top + 14;
@@ -2205,11 +2213,12 @@ document.addEventListener("toggle", e => { const d = e.target.closest?.("details
 let hbCache = { key: null, html: "" };
 /* the lesson card floats above the build bar on wide screens; measured only when something resizes, not every tick */
 function layoutLesson() {
+  document.documentElement.style.setProperty("--topbar-h", document.querySelector(".topbar").offsetHeight + "px");
   const lessonEl = $("#lesson"), buildEl = document.querySelector(".build");
   if (innerWidth > 900 && buildEl) { const bt = buildEl.offsetHeight + 28; lessonEl.style.bottom = bt + "px"; lessonEl.style.maxHeight = Math.max(160, document.querySelector(".stage").clientHeight - bt - 104) + "px"; }
   else { lessonEl.style.bottom = ""; lessonEl.style.maxHeight = ""; }
 }
-new ResizeObserver(layoutLesson).observe(document.querySelector(".build"));
+{ const ro = new ResizeObserver(layoutLesson); ro.observe(document.querySelector(".build")); ro.observe(document.querySelector(".topbar")); } // the topbar re-wraps on phones when fonts load
 const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
 function brandTag(k, picks) {
   const it = ITEMS[k];
@@ -2467,11 +2476,13 @@ function frame() {
     renderer.render(scene, camera);
     if (!booted) { booted = true; $("#boot")?.remove(); }
     uiClock += dt;
-    if (uiClock > 0.3) { uiClock = 0; renderAll(); }
+    if (uiClock > 0.3) { uiClock = 0; hoverTick(true); renderAll(); }
   } catch (e) {
     const now = performance.now();
     if (now - errAt > 1000) { errAt = now; console.error(e); }
-    if (!errShown) { errShown = true; toast("Something went wrong. Reload the page if the map stays frozen.", "bad"); }
+    // the very first frame failed: the boot overlay is still up, so turn it into an honest error instead of loading forever
+    if (!booted) { booted = true; bootFail("The 3D view could not start", "Your graphics driver rejected the scene. Try another browser or turn on hardware acceleration, then reload."); }
+    else if (!errShown) { errShown = true; toast("Something went wrong. Reload the page if the map stays frozen.", "bad"); }
   }
 }
 /* ---------- save and resume (this browser only) ---------- */
@@ -2522,8 +2533,10 @@ function restore(d) {
 const rackById = id => racks.find(r => r.id === id);
 const saved = loadSave();
 let resumed = false;
-if (saved && saved.site) {
-  try { restore(saved); resumed = true; }
+// a save whose site this version doesn't know (or no site at all) is not resumable: drop it and start fresh rather than resume a campaign with no site
+if (saved && !Object.keys(SITES).includes(saved.site)) { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+else if (saved) {
+  try { restore(saved); resumed = !!S.site; }
   catch (e) { console.error(e); try { localStorage.removeItem(SAVE_KEY); } catch (_) {} location.reload(); return; }
 }
 if (resumed) {
@@ -2531,7 +2544,7 @@ if (resumed) {
   const bestRun = loadJSON(BEST_KEY);
   showModal(`
     <div class="eyebrow">Welcome back</div>
-    <h2>${S.completed ? "Your campus is still running" : `Level ${S.level}: ${LEVELS[S.level].name}`}</h2>
+    <h2>${S.completed ? "Your campus is still running" : S.level ? `Level ${S.level}: ${LEVELS[S.level].name}` : LEVELS[0].name}</h2>
     <p class="lead">Your game was saved in this browser: ${esc(site().name)}${S.building ? ", " + esc(bld().name.toLowerCase()) : ""}, ${money(S.budget)} in the bank.${bestRun ? ` Best run so far: ${esc(bestRun.grade)}, ${+bestRun.score || 0} points.` : ""}</p>
     <div class="foot"><button class="btn ghost lg" data-act="reset">Start over</button><button class="btn primary lg" data-act="resume">Continue</button></div>`);
 } else startLevel(0);
