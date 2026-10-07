@@ -122,6 +122,7 @@ svg { display: block; flex: none; }
 .chip.warn { background: var(--warn-wash); color: var(--warn); }
 .chip.bad { background: var(--bad-wash); color: var(--bad); }
 .chip.info { background: var(--accent-wash); color: var(--accent-ink); }
+.chip.wrap { white-space: normal; }
 .chip.idle { background: var(--wash); color: var(--muted); }
 .next { background: var(--accent); color: #fff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .next .eyebrow { color: rgba(255,255,255,.75); }
@@ -725,7 +726,7 @@ const LEVELS = [
       { label: "Install a UPS system", hint: "ups", done: () => n("ups") > 0 },
       { label: "Install a standby generator", hint: "gen", done: () => n("gen") > 0 },
       { label: "Add aisle containment", hint: "containment", done: () => n("containment") > 0 },
-      { label: "Cooling at N+1", hint: "crac", done: () => coolN1() && rackCount() > 0, sub: () => `Lose your biggest unit and you'd have ${kw(Math.max(0, C().air - C().airBig))} for ${kw(C().airHeat)} of heat` },
+      { label: "Cooling at N+1", hint: "crac", done: () => coolN1() && rackCount() > 0, sub: () => `Lose your biggest unit and you'd have ${kw(Math.max(0, CD().air - CD().airBig))} for ${kw(CD().airHeat)} of heat` },
       { label: "Install building management", hint: "bms", done: () => n("bms") > 0 },
       { label: "Commission levels 1–3", proc: "cx13" },
       { label: "Pass the utility outage drill", drill: "outage" },
@@ -737,13 +738,13 @@ const LEVELS = [
     objectives: [
       { label: "Run 24 racks", hint: "rack", prog: () => [rackCount(), 24] },
       { label: "Build a chilled water plant", hint: "chiller", prog: () => [n("chiller"), 2] },
-      { label: "Cooling at N+1", hint: "chiller", done: () => coolN1() && rackCount() > 0, sub: () => `Lose your biggest unit and you'd have ${kw(Math.max(0, C().air - C().airBig))} for ${kw(C().airHeat)} of heat` },
+      { label: "Cooling at N+1", hint: "chiller", done: () => coolN1() && rackCount() > 0, sub: () => `Lose your biggest unit and you'd have ${kw(Math.max(0, CD().air - CD().airBig))} for ${kw(CD().airHeat)} of heat` },
       { label: "Generators at N+1", hint: "gen", done: () => genN1() },
-      { label: "UPS at N+1", hint: "ups", done: () => upsN1(), sub: () => `N+1 shares spare modules; a 2N design would need two complete ${kw(C().it)} systems` },
+      { label: "UPS at N+1", hint: "ups", done: () => upsN1(), sub: () => `N+1 shares spare modules; a 2N design would need two complete ${kw(CD().it)} systems` },
       { label: "Add a second fiber carrier", hint: "fiber2", done: () => n("fiber2") > 0 },
       { label: "Install fire protection", hint: "fire", done: () => n("fire") > 0 },
       { label: "Secure the site", hint: "security", done: () => n("security") > 0 },
-      { label: "Cut PUE with chilled water", hint: "chiller", done: () => C().it > 0 && C().pue < 1.07 + 0.35 * site().cool, sub: () => `Now ${C().pue ? C().pue.toFixed(2) : "–"}, target below ${(1.07 + 0.35 * site().cool).toFixed(2)}. Chillers and OpenBlue both help.` },
+      { label: "Cut PUE with chilled water", hint: "chiller", done: () => CD().it > 0 && CD().pue < 1.07 + 0.35 * site().cool, sub: () => `Now ${CD().pue ? CD().pue.toFixed(2) : "–"}, target below ${(1.07 + 0.35 * site().cool).toFixed(2)}. Chillers and OpenBlue both help.` },
       { label: "Commission levels 4–5", proc: "cx45" },
       { label: "Pass the cooling failure drill", drill: "chillerFail" },
       { label: "Pass the generator failure drill", drill: "genFail" },
@@ -762,7 +763,7 @@ const LEVELS = [
       { label: "Run 8 GPU racks", hint: "gpu", prog: () => [n("gpu"), 8] },
       { label: "Open Hall 2", hint: "hallA", done: () => n("hallA") > 0 },
       { label: "Reach 1 MW of IT load", hint: "gpu", prog: () => [Math.round(C().it), 1000], unit: "kW" },
-      { label: "Keep PUE at or below 1.35", hint: () => n("openblue") ? "chiller" : "openblue", done: () => C().it > 0 && C().pue <= 1.35, sub: () => `Now ${C().pue ? C().pue.toFixed(2) : "–"}` },
+      { label: "Keep PUE at or below 1.35", hint: () => n("openblue") ? "chiller" : "openblue", done: () => CD().it > 0 && CD().pue <= 1.35, sub: () => `Now ${CD().pue ? CD().pue.toFixed(2) : "–"}` },
       { label: "Pass the full-load outage drill", drill: "fullLoad" },
     ] },
 ];
@@ -801,6 +802,25 @@ const DRILLS = {
       : c.liquid < c.gpuHeat ? fail(`Liquid cooling (${kw(c.liquid)}) can't absorb ${kw(c.gpuHeat)} of GPU heat.`, "cdu")
       : pass(`At ${kw(c.it)}, the grid failed. The UPS bridged, ${n("gen")} generators started, and the cooling held. Training never paused.`) },
 };
+/* operating events (level 2+): forecast first, then a real test of one N+1 decision. Each one's effect lives in computeCaps(); odds(site) sets how often each market sees it */
+const EVENTS = {
+  heatwave: { name: "Heat wave", icon: "flame", dur: 45, cool: 1.35, airCap: 0.8, minLevel: 2, odds: s => s.cool >= 1.2 ? 4 : s.cool >= 0.9 ? 1.5 : 0.3,
+    lesson: "Hot outside air cuts chiller and CRAC capacity by about a fifth. Plants in Phoenix are designed for 45 °C days; N+1 cooling is what rides this out." },
+  curtail: { name: "Utility curtailment", icon: "plug", dur: 40, gridCap: 0.8, minLevel: 2, odds: s => s === SITES.ashburn ? 4 : 0.5,
+    lesson: "On a constrained grid the utility asks big loads to cut back at peak. Headroom in your service keeps every rack earning." },
+  storm: { name: "Storm takes out the grid", icon: "bolt", dur: 20, grid: 0, power: true, minLevel: 2, odds: s => s === SITES.columbus ? 3 : s === SITES.phoenix ? 0.4 : 1,
+    lesson: "Real outages don't wait for a drill. A UPS plus generators sized for the whole facility load keep you running." },
+  drought: { name: "Water restriction", icon: "drop", dur: 60, waterChiller: 0.5, minLevel: 3, odds: s => s.waterStress && (S.picks.chiller || []).includes(1) ? 4 : 0,
+    lesson: "Water-cooled chillers evaporate water in cooling towers. A restriction halves their capacity; air-cooled plants don't care." },
+  backhoe: { name: "Backhoe cuts a fiber route", icon: "link", dur: 30, carriers: -1, minLevel: 3, odds: () => 1,
+    lesson: "Fiber gets cut all the time. A second carrier on a physically separate route is the only protection." },
+  maint: { name: "Planned maintenance: biggest cooling unit offline", icon: "wrench", dur: 30, airMinusBig: true, minLevel: 2, odds: () => S.level >= 3 ? 2 : 0.5,
+    lesson: "Concurrently maintainable (Tier III) means any unit can be taken out for service without touching the racks. That takes N+1." },
+};
+CONCEPTS.events = { name: "Operating through events", icon: "alert",
+  what: "Weather, the grid, water and construction crews all test a running site. Operators watch forecasts and keep spare capacity so events pass unnoticed.",
+  why: "Redundancy is bought for the day something goes wrong. Each event here checks one of your N+1 decisions for real.",
+  nums: ["Heat waves cut cooling capacity; curtailments cut grid supply", "Storms cause most unplanned grid outages", "Water restrictions hit evaporative cooling first"] };
 
 /* ---------------- game state ---------------- */
 const S = {
@@ -809,7 +829,8 @@ const S = {
   uptime: 100, rev: 0, bill: 0, rate: 0, completed: false, levelShown: -1,
   credits: 0, stats: { fixed: 0, breached: 0 }, // SLA credits paid to customers, incidents fixed / overdue (saved)
   spent: 0, finishedAt: null, levelSpent0: 0, // money invested so far, game clock at campus completion, S.spent when this level began (saved)
-  eventLoss: 0, eventsSeen: { survived: 0, lost: 0 }, // operating-event tallies for the report card (saved; filled in by the events system)
+  eventLoss: 0, eventsSeen: { survived: 0, lost: 0 }, // revenue lost to operating events and how many were ridden out or lost (saved)
+  event: null, forecast: null, nextEvent: 90, lastMult: 1, // the running operating event, the announced one, when the next may be forecast, last revenue factor (not saved: an event ends on reload)
   speed: 1, // fast-forward factor for the economy, clock and processes (not saved)
 };
 const n = k => S.built[k] || 0;
@@ -832,23 +853,29 @@ function costOf(k, i = S.choice[k] ?? 0) {
 }
 
 /* derived capacity model (simplified for play) */
-let _caps = null;
+let _caps = null, _capsD = null;
 function C() { return _caps || (_caps = computeCaps()); }
-function invalidate() { _caps = null; }
+/* the design capacity: the same model with no operating event. Goals, N+1 checks and the score judge the build, not today's weather */
+function CD() { return S.event ? (_capsD || (_capsD = computeCaps({ ev: null }))) : C(); }
+function invalidate() { _caps = null; _capsD = null; }
 function computeCaps(o = {}) {
-  // o overrides the live state for what-if questions: { full, built, racks, site, picks, ppa }. With no argument it reads S.
+  // o overrides the live state for what-if questions: { full, built, racks, site, picks, ppa, ev }. With no argument it reads S (ev: the running event, null for none).
   const base = o.full ? {} : S.built;
   const nb = k => (o.built && k in o.built) ? o.built[k] : (base[k] || 0);
   const rackN = o.racks ?? rackCount(), st = o.site ? SITES[o.site] : site();
   const picks = o.picks ?? (S.picks.chiller || []), ppa = o.ppa ?? procDone("ppa");
+  const ev = o.ev !== undefined ? o.ev : (S.event ? EVENTS[S.event.key] : null);
   const cm = nb("containment") ? 1.25 : 1, bc = bld().cool;
-  const utilityCap = nb("substation") ? 2500 : nb("transformer") ? 300 : nb("utility") ? 50 : 0;
+  const utilityCap = Math.round((nb("substation") ? 2500 : nb("transformer") ? 300 : nb("utility") ? 50 : 0) * (ev?.gridCap ?? 1));
   const ups = nb("upsSmall") * 20 + nb("ups") * 500;
   const upsBig = nb("ups") ? 500 : nb("upsSmall") ? 20 : 0;
   const gen = nb("gen") * 500;
   const U = { chiller: 300 * bc, crac: 40 * cm * bc, split: 12 * cm * bc };
-  const air = nb("chiller") * U.chiller + nb("crac") * U.crac + nb("split") * U.split;
   const airBig = nb("chiller") ? U.chiller : nb("crac") ? U.crac : nb("split") ? U.split : 0;
+  // events: hot air derates every unit, maintenance takes the biggest one out, a water restriction halves water-cooled chillers
+  let air = (nb("chiller") * U.chiller + nb("crac") * U.crac + nb("split") * U.split) * (ev?.airCap ?? 1);
+  if (ev?.airMinusBig) air = Math.max(0, air - airBig);
+  if (ev?.waterChiller) air = Math.max(0, air - picks.filter(i => i === 1).length * U.chiller * (1 - ev.waterChiller));
   const liquid = nb("cdu") * 500;
   const rackIT = rackN * 6, gpuHeat = nb("gpu") * 40, hallIT = nb("hallA") * 600;
   const it = rackIT + gpuHeat + hallIT;
@@ -861,15 +888,18 @@ function computeCaps(o = {}) {
   take(nb("crac") * U.crac, nb("containment") ? 0.42 : 0.58);
   take(nb("split") * U.split, 0.88);
   over += rem * 1.2 + gpuHeat * 0.1;
-  over *= st.cool * (nb("openblue") ? 0.9 : 1);
+  over *= st.cool * (ev?.cool ?? 1) * (nb("openblue") ? 0.9 : 1);
   const pue = it ? 1 + over / it + 0.07 : 0;
   const facility = it * (pue || 1);
   const price = st.price * (ppa ? 0.85 : 1);
-  return { utilityCap, ups, upsBig, gen, air, airBig, liquid, it, airHeat, gpuHeat, pue, facility, price, carriers: nb("fiber") + nb("fiber2") };
+  return { utilityCap, ups, upsBig, gen, air, airBig, liquid, it, airHeat, gpuHeat, pue, facility, price,
+    carriers: Math.max(0, nb("fiber") + nb("fiber2") + (ev?.carriers ?? 0)), gridDown: ev?.grid === 0 };
 }
-const coolN1 = () => { const c = C(); return c.air - c.airBig >= c.airHeat; };
-const genN1 = () => { const c = C(); return n("gen") >= 2 && c.gen - 500 >= c.facility; };
-const upsN1 = () => { const c = C(); return c.it > 0 && c.ups - c.upsBig >= c.it; };
+const coolN1 = () => { const c = CD(); return c.air - c.airBig >= c.airHeat; };
+const genN1 = () => { const c = CD(); return n("gen") >= 2 && c.gen - 500 >= c.facility; };
+const upsN1 = () => { const c = CD(); return c.it > 0 && c.ups - c.upsBig >= c.it; };
+/* UPS bridges the generator start, generators carry the whole facility: the site rides through a grid outage */
+const ridesOut = c => c.gen > 0 && c.ups >= c.it && c.gen >= c.facility;
 function rackCount() { return racks.filter(r => r.built && !r.gpu).length; }
 function coolItem() {
   for (const k of S.level >= 3 ? ["chiller", "crac"] : S.level === 2 ? ["crac", "containment"] : ["split"]) {
@@ -901,14 +931,14 @@ function previewProc(k) { return k === "ppa" ? { before: C(), after: computeCaps
 /* site projections: the same reference build (level-3 style: 24 racks, 2 air-cooled chillers) in each market */
 const REF_BUILD = { utility: 1, transformer: 1, ups: 2, gen: 2, chiller: 2, containment: 1, bms: 1, fiber: 1, fiber2: 1 };
 function siteProjection(key) {
-  const s = SITES[key], c = computeCaps({ full: true, built: REF_BUILD, racks: 24, site: key, picks: [0, 0], ppa: false }), e = econ(c, s);
+  const s = SITES[key], c = computeCaps({ full: true, built: REF_BUILD, racks: 24, site: key, picks: [0, 0], ppa: false, ev: null }), e = econ(c, s);
   // per MW of IT, per in-game hour (the Profit card's unit)
   return { pue: c.pue, billPerMW: e.bill * 60 * 1000 / c.it, revPerMW: e.rev * 60 * 1000 / c.it };
 }
 /* your current build, moved to each market (Handbook; the report card can reuse it) */
 function marketTable() {
   return `<table class="cmp"><tr><th>Market</th><th>PUE</th><th>Profit/h</th></tr>${Object.keys(SITES).map(k => {
-    const c = computeCaps({ site: k }), e = econ(c, SITES[k]);
+    const c = computeCaps({ site: k, ev: null }), e = econ(c, SITES[k]);
     return `<tr class="${k === S.site ? "now" : ""}"><td>${SITES[k].name.split(",")[0]}</td><td>${c.pue ? c.pue.toFixed(2) : "–"}</td><td>${c.it ? money(e.rate * 60) : "–"}</td></tr>`;
   }).join("")}</table>`;
 }
@@ -924,7 +954,8 @@ function procBlocker(k) {
 }
 /* What stops this item from being built right now? null or {why, need, needProc, lock, money} */
 function blocker(k) {
-  const it = ITEMS[k], c = C();
+  const it = ITEMS[k], c = C(), ev = S.event ? EVENTS[S.event.key] : null;
+  const evNote = kind => ev && (kind === "cool" ? ev.cool || ev.airMinusBig || ev.waterChiller : ev.gridCap || ev.cool) ? ` (${lc(ev.name)} in progress)` : "";
   if (it.level > S.level) return { why: `Unlocks at level ${it.level}`, lock: true };
   if (k === "rack") {
     const cap = LEVELS[S.level].rackCap;
@@ -941,11 +972,11 @@ function blocker(k) {
     if (!procDone("elecPermit")) return { why: "Nothing can be energized before the electrical inspection", needProc: "elecPermit" };
     if (k === "rack" && !n("fiber")) return { why: "Racks need a network to earn anything", need: "fiber" };
     if (k === "hallA" && !n("substation")) return { why: "Hall 2 needs the substation's capacity", need: "substation" };
-    if (addAir && c.air === 0) return { why: "Racks need cooling first, because every watt becomes heat", need: coolItem() };
-    if (addAir && c.air < c.airHeat + addAir) return { why: `Not enough cooling: ${kw(c.airHeat + addAir)} of heat vs ${kw(c.air)} of capacity`, need: coolItem() };
+    if (addAir && c.air === 0) return { why: "Racks need cooling first, because every watt becomes heat" + evNote("cool"), need: coolItem() };
+    if (addAir && c.air < c.airHeat + addAir) return { why: `Not enough cooling: ${kw(c.airHeat + addAir)} of heat vs ${kw(c.air)} of capacity${evNote("cool")}`, need: coolItem() };
     if (addGpu && c.liquid < c.gpuHeat + addGpu) return { why: `GPU racks need liquid cooling (${kw(c.gpuHeat + addGpu)} of heat vs ${kw(c.liquid)})`, need: "cdu" };
     const after = estimateAfter(addAir + addGpu);
-    if (after.facility > c.utilityCap) return { why: `Grid service too small: ${kw(after.facility)} facility load vs ${kw(c.utilityCap)}`, need: powerItem() };
+    if (after.facility > c.utilityCap) return { why: `Grid service too small: ${kw(after.facility)} facility load vs ${kw(c.utilityCap)}${evNote("grid")}`, need: powerItem() };
     if (c.ups && after.it > c.ups) return { why: `The UPS would be overloaded: ${kw(after.it)} vs ${kw(c.ups)}`, need: S.level >= 2 ? "ups" : null };
   }
   if (S.budget < costOf(k)) return { why: `Need ${money(Math.ceil((costOf(k) - S.budget) / 5000) * 5000)} more. Your racks earn while you wait`, money: true };
@@ -965,7 +996,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 // the shadow map is re-rendered only when something that casts a shadow appeared, moved or vanished (set shadowsDirty = true)
 renderer.shadowMap.autoUpdate = false; let shadowsDirty = true;
 const scene = new THREE.Scene();
-const SKY = new THREE.Color(0xe9edf7), SKY_DARK = new THREE.Color(0x8e98b4);
+const SKY = new THREE.Color(0xe9edf7), SKY_DARK = new THREE.Color(0x8e98b4), SKY_HOT = new THREE.Color(0xf6e3c8);
 scene.background = SKY.clone();
 
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 400);
@@ -1543,6 +1574,7 @@ function buyBuilding(key) {
 
 function runDrill(key) {
   if (S.drill) return;
+  if (S.event || S.forecast) { toast("Wait for the event to pass before running a drill.", "warn"); return; }
   const d = DRILLS[key];
   if (d.needs && !procDone(d.needs)) { toast(`Finish ${lc(PROCS[d.needs].name)} before testing.`, "warn"); return; }
   S.drill = { key, t: 0, dur: 4.2, result: d.test(C()) };
@@ -1610,7 +1642,7 @@ function showLevelDone() {
 const BEST_KEY = "dcb-best-v1";
 const loadJSON = k => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } };
 function scoreData() {
-  const c = C(), quizRight = Object.values(S.quiz || {}).reduce((a, r) => a + (+String(r).split("/")[0] || 0), 0), quizTotal = QUIZ.reduce((a, q) => a + q.qs.length, 0),
+  const c = CD(), quizRight = Object.values(S.quiz || {}).reduce((a, r) => a + (+String(r).split("/")[0] || 0), 0), quizTotal = QUIZ.reduce((a, q) => a + q.qs.length, 0),
     fails = Object.keys(S.failed || {}).length, elapsed = Math.max(0, (S.finishedAt ?? S.clock) - 540);
   const parts = [["Uptime", Math.round(300 * clamp((S.uptime - 95) / 5, 0, 1))], ["PUE", Math.round(200 * clamp((1.6 - (c.pue || 1.6)) / 0.4, 0, 1))],
     ["Knowledge checks", Math.round(200 * quizRight / quizTotal)], ["Drills", Math.max(0, 150 - 30 * fails)], ["Pace", Math.round(150 * clamp(1 - (elapsed - 600) / 1800, 0, 1))]];
@@ -1624,13 +1656,13 @@ function scoreData() {
   return { c, quizRight, quizTotal, fails, elapsed, parts, score, grade, title, stars };
 }
 function jciLedger() {
-  const rows = [], c = C();
-  const noOB = n("openblue") && c.it ? computeCaps({ built: { openblue: 0 } }) : null;
+  const rows = [], c = CD();
+  const noOB = n("openblue") && c.it ? computeCaps({ built: { openblue: 0 }, ev: null }) : null;
   if (noOB) rows.push(["OpenBlue optimization", `−10% cooling energy · saves ${money((noOB.facility - c.facility) * c.price * 3600)}/h in this game`]);
   if (S.picks.bms?.[0] === 0) rows.push(["Metasys BMS", `${SLA()} s to respond · ${S.stats.fixed} fixed, ${S.stats.breached} overdue`]);
   const ch = S.picks.chiller || [];
   if (c.it && ch.some(i => ITEMS.chiller.options[i].jci)) {
-    const alt = computeCaps({ picks: ch.map(() => 2) });
+    const alt = computeCaps({ picks: ch.map(() => 2), ev: null });
     rows.push([`YORK chillers ×${ch.filter(i => i !== 2).length}`, `plant PUE ${c.pue.toFixed(2)} (vs ${alt.pue.toFixed(2)} with the other vendor)`]);
   }
   if (S.picks.fire?.[0] === 0) rows.push(["Tyco SAPPHIRE + Simplex", "clean-agent suppression: no wet servers"]);
@@ -1759,6 +1791,7 @@ function startLevel(lv) {
   flyTo(L.camera.x, L.camera.z, zoomFor(L.camera.zoom));
   if (lv >= 2) { crews.forEach(c => c.g.visible = true); learn("remote"); shadowsDirty = true; invalidateHit(); }
   S.nextIncident = S.t + 30;
+  if (lv >= 2) S.nextEvent = Math.max(S.nextEvent, S.t + 60); // a minute to settle in before the first forecast
   S.selected = null;
   invalidate();
   const c = CONCEPTS[L.concept];
@@ -1857,6 +1890,44 @@ function resolve(inc) {
   } else toast(`${inc.rack.id} fixed.`, "good");
 }
 
+/* operating events: weighted by market and level; planned maintenance is rarer with low-maintenance chillers and skips an all-YZ (oil-free) plant */
+function pickEvent() {
+  const s = site(), chF = S.picks.chiller || [];
+  const allYZ = chF.length && chF.every(i => i === 1);
+  const w = Object.entries(EVENTS).map(([k, e]) => {
+    let o = e.minLevel <= S.level ? e.odds(s) : 0;
+    if (k === "maint") { if (allYZ) o = 0; else if (chF.length) o *= chF.reduce((a, i) => a + ITEMS.chiller.options[i].maint, 0) / chF.length; }
+    return [k, o];
+  }).filter(([, o]) => o > 0);
+  const tot = w.reduce((a, [, o]) => a + o, 0);
+  if (!tot) return null;
+  let r = Math.random() * tot;
+  for (const [k, o] of w) { r -= o; if (r <= 0) return k; }
+  return w[w.length - 1][0];
+}
+function startEvent(key) {
+  const e = EVENTS[key];
+  S.event = { key, t: 0, dur: e.dur, loss0: S.eventLoss }; S.forecast = null; S.speed = 1;
+  learn("events"); invalidate(); shadowsDirty = true;
+  toast(`${e.name}. ${e.lesson}`, "bad");
+  renderAll();
+}
+function endEvent() {
+  const e = EVENTS[S.event.key], lost = S.eventLoss - S.event.loss0;
+  S.eventsSeen[lost > 100 ? "lost" : "survived"]++;
+  toast(lost > 100 ? `${e.name} over. You lost ${money(lost)} of revenue.` : `${e.name} over. Your spare capacity held; nothing lost.`, lost > 100 ? "bad" : "good");
+  S.event = null; S.nextEvent = S.t + rand(80, 140);
+  setDark(0); invalidate(); shadowsDirty = true;
+  renderAll(); checkLevel();
+}
+/* d = 0 daylight … 1 dark: drills and grid outages dim the scene */
+function setDark(d) { hemi.intensity = 0.62 - d * 0.45; sun.intensity = 0.58 - d * 0.4; scene.background.copy(SKY).lerp(SKY_DARK, d); }
+function eventVisuals() {
+  const e = EVENTS[S.event.key], c = C();
+  if (e.power) setDark(c.gridDown && !ridesOut(c) ? 0.75 : 0.35);
+  else if (e.cool) scene.background.copy(SKY).lerp(SKY_HOT, 0.5);
+}
+
 /* =====================================================================
    SIMULATION
    ===================================================================== */
@@ -1871,11 +1942,27 @@ function simulate(dt) {
   const down = S.drill && !S.drill.result.ok && S.drill.t > 0.8;
   const downKW = racks.reduce((a, r) => a + (r.built && ((r.incident?.breached && r.incident.state !== "repairing") || r.dryUntil > S.t) ? r.kw : 0), 0);
   const e = econ(c);
-  S.rev = down ? 0 : downKW ? Math.max(0, c.it - downKW) * 16 * site().rev : e.rev;
+  // operating events: overheated rooms throttle, a curtailed grid sheds load, a grid outage without full backup or a cut to the last carrier stops all revenue
+  let mult = 1;
+  if (c.air && c.airHeat > c.air) mult *= 0.5;
+  if (c.utilityCap && c.facility > c.utilityCap && !c.gridDown) mult *= c.utilityCap / c.facility;
+  if (c.gridDown) mult = ridesOut(c) ? mult : 0;
+  if (c.it && c.carriers <= 0) mult = 0;
+  S.lastMult = mult;
+  S.rev = (down ? 0 : downKW ? Math.max(0, c.it - downKW) * 16 * site().rev : e.rev) * mult;
+  if (S.event && mult < 1) S.eventLoss += (1 - mult) * c.it * 16 * site().rev * sdt;
   S.bill = e.bill;
   S.rate = S.rev - S.bill;
   S.budget += S.rate * sdt;
   tickTasks(sdt);
+  // operating events: forecast, then the event itself (never during a drill or while a dialog is open)
+  if (S.level >= 2 && !S.drill && !S.event && !S.forecast && S.t > S.nextEvent && !$("#modalRoot").firstChild) {
+    const key = pickEvent();
+    if (key) { S.forecast = { key, at: S.t + forecastLead() }; toast(`Forecast: ${lc(EVENTS[key].name)} in about ${forecastLead()} s. Check your spare capacity.`, "warn"); }
+    else S.nextEvent = S.t + rand(80, 140);
+  }
+  if (S.forecast && S.t >= S.forecast.at) startEvent(S.forecast.key);
+  if (S.event) { S.event.t += dt; eventVisuals(); if (S.event.t >= S.event.dur) endEvent(); }
   if (S.level >= 2 && S.t > S.nextIncident && !S.drill) { spawnIncident(); S.nextIncident = S.t + rand(22, 34); }
   for (const inc of S.incidents) {
     // SLA credit: about 20 s of that rack's revenue when it goes overdue, and again every 30 s until a technician is working on it
@@ -1907,22 +1994,22 @@ function simulate(dt) {
     S.drill.t += dt;
     const d = DRILLS[S.drill.key];
     const k = d.power ? Math.sin(Math.min(1, S.drill.t / S.drill.dur) * Math.PI) : 0;
-    const dark = d.power ? (S.drill.result.ok ? k * 0.35 : k * 0.75) : 0;
-    hemi.intensity = 0.62 - dark * 0.45; sun.intensity = 0.58 - dark * 0.4;
-    scene.background.copy(SKY).lerp(SKY_DARK, dark);
+    setDark(d.power ? (S.drill.result.ok ? k * 0.35 : k * 0.75) : 0);
     if (d.power && S.drill.result.ok) { genGroups.forEach((g, i) => { if (i < n("gen")) g.position.y = Math.sin(S.t * 60 + i) * 0.03 * k; }); shadowsDirty = true; }
-    if (S.drill.t >= S.drill.dur) { hemi.intensity = 0.62; sun.intensity = 0.58; scene.background.copy(SKY); genGroups.forEach(g => g.position.y = 0); shadowsDirty = true; finishDrill(); }
+    if (S.drill.t >= S.drill.dur) { setDark(0); genGroups.forEach(g => g.position.y = 0); shadowsDirty = true; finishDrill(); }
   }
 }
 function updateLeds(dt) {
   ledClock += dt; if (ledClock < 0.14) return; ledClock = 0; ledTick++;
   const col = new THREE.Color();
-  const d = S.drill, dead = d && !d.result.ok && d.t > 0.8;
+  const d = S.drill, c = C();
+  // a failed drill, or an event that is actually hurting: too hot (red flicker), grid down without backup (dark), last carrier cut (amber)
+  const pat = d && !d.result.ok && d.t > 0.8 ? d.key : !S.event ? null : c.airHeat > c.air ? "chillerFail" : c.gridDown && S.lastMult === 0 ? "dark" : c.it && c.carriers <= 0 ? "fiberCut" : null;
   for (const r of racks) {
     if (!r.built) continue;
     for (let k = 0; k < LEDS_PER; k++) {
       let hex;
-      if (dead) hex = d.key === "fiberCut" ? (k % 2 ? 0xffb020 : 0x35e39a) : d.key === "chillerFail" ? ((ledTick + k) % 2 ? 0xff4a4a : 0x3a1d22) : 0x262b3d;
+      if (pat) hex = pat === "fiberCut" ? (k % 2 ? 0xffb020 : 0x35e39a) : pat === "chillerFail" ? ((ledTick + k) % 2 ? 0xff4a4a : 0x3a1d22) : 0x262b3d;
       else if (r.incident) { const bad = r.incident.sev === "bad", on = (ledTick + (k % 2)) % 2 === 0; hex = k % 2 === 0 ? (on ? (bad ? 0xff4a4a : 0xffb020) : 0x3a1d22) : 0x35e39a; }
       else if (r.gpu) hex = k % 2 === 0 ? (Math.random() < 0.15 ? 0x0f5f5a : 0x2ee6d6) : (Math.random() < 0.3 ? 0x3b2a6e : 0x9b7bff);
       else hex = k % 2 === 0 ? (Math.random() < 0.08 ? 0x17573f : 0x35e39a) : (Math.random() < 0.3 ? 0x1d2e66 : 0x6f9bff);
@@ -2165,7 +2252,7 @@ function nextHint() {
       if (d.needs && !procDone(d.needs)) a = actionFor("proc", d.needs);
       else {
         // if the design would fail and the player already saw it fail, point at the fix instead
-        const r = d.test(C());
+        const r = d.test(CD());
         a = !r.ok && r.fix && S.failed?.[o.drill] && ITEMS[r.fix] && !blocker(r.fix)?.lock ? { ...(actionFor("item", r.fix) || {}), why: r.text } : { kind: "drill", key: o.drill, ok: r.ok };
       }
     }
@@ -2199,9 +2286,9 @@ function renderAll() {
   rate.textContent = c.it ? `${S.rate >= 0 ? "+" : "−"}${money(Math.abs(S.rate * 60))}/h profit` : S.site ? `Not earning yet · ${site().name.split(",")[0]}` : "Not earning yet";
   rate.classList.toggle("neg", S.rate < 0);
   $("#clock").textContent = hhmm(S.clock);
-  const outage = S.drill && DRILLS[S.drill.key].power && S.drill.t > 0.3;
-  $("#live").classList.toggle("outage", !!outage);
-  $("#liveText").textContent = outage ? (!S.drill.result.ok ? "Outage" : n("gen") ? "Generator" : "Battery") : n("utility") ? "Grid" : "No power";
+  const outage = S.drill && DRILLS[S.drill.key].power && S.drill.t > 0.3, evPower = S.event && EVENTS[S.event.key].power;
+  $("#live").classList.toggle("outage", !!(outage || evPower));
+  $("#liveText").textContent = evPower ? (ridesOut(c) ? "Generator" : "Outage") : outage ? (!S.drill.result.ok ? "Outage" : n("gen") ? "Generator" : "Battery") : n("utility") ? "Grid" : "No power";
   const open = S.incidents.length, badge = $("#bellBadge"); badge.hidden = !open; badge.textContent = open;
 
   const coolPct = c.air ? c.airHeat / c.air * 100 : 0;
@@ -2294,9 +2381,9 @@ function renderSide(c, L, hint, open) {
   if (S.tab === "mission") {
     const objs = objList(L), doneCount = objs.filter(objDone).length;
     side += `<div class="mission-head"><div class="eyebrow">${L.n ? `Level ${L.n} of ${LEVELS.length - 1}` : "Getting started"}</div><h2>${L.name}</h2><p>${esc(L.story)}</p>
-      <div class="tierline">${chip("info", L.tier)}${chip(doneCount === objs.length ? "good" : "idle", `${doneCount}/${objs.length} goals`)}${S.site ? chip("idle", site().name) : ""}${S.building ? chip("idle", bld().name) : ""}${L.n >= 2 ? chip(S.uptime >= 99.9 ? "good" : "warn", `Uptime ${S.uptime.toFixed(2)}%`) : ""}</div></div>`;
+      <div class="tierline">${chip("info", L.tier)}${chip(doneCount === objs.length ? "good" : "idle", `${doneCount}/${objs.length} goals`)}${S.site ? chip("idle", site().name) : ""}${S.building ? chip("idle", bld().name) : ""}${L.n >= 2 ? chip(S.uptime >= 99.9 ? "good" : "warn", `Uptime ${S.uptime.toFixed(2)}%`) : ""}${S.event ? chip("bad wrap", `${EVENTS[S.event.key].name} · ${Math.ceil(S.event.dur - S.event.t)} s`) : S.forecast ? chip("warn wrap", `Forecast: ${lc(EVENTS[S.forecast.key].name)} in ${Math.max(0, Math.ceil(S.forecast.at - S.t))} s`) : ""}</div></div>`;
     if (S.completed) side += `<div class="next done"><div class="eyebrow">Campus complete</div><p>You've finished every level. Keep the campus running: fix alerts, add capacity and rerun any drill.</p><button class="btn" data-act="report">Report card</button></div>`;
-    else if (hint) side += `<div class="next"><div class="eyebrow">Next step</div><p>${hint.text}</p>${hint.label ? `<button class="btn" data-act="hintGo" ${hint.kind === "drill" && S.drill ? "disabled" : ""}>${hint.label}</button>` : ""}</div>`;
+    else if (hint) side += `<div class="next"><div class="eyebrow">Next step</div><p>${hint.text}</p>${hint.label ? `<button class="btn" data-act="hintGo" ${hint.kind === "drill" && (S.drill || S.event || S.forecast) ? "disabled" : ""}>${hint.label}</button>` : ""}</div>`;
     else if (objs.length && doneCount === objs.length && !$("#modalRoot").firstChild) side += `<div class="next"><div class="eyebrow">Level complete</div><p>Every goal is done.</p><button class="btn" data-act="levelDone">Continue</button></div>`;
     side += `<div><div class="sec-title">Goals <span>${L.tier}</span></div>${objs.map(o => {
       const d = objDone(o); let sub = "", extra = "";
@@ -2312,7 +2399,7 @@ function renderSide(c, L, hint, open) {
     const drills = S.completed ? Object.keys(DRILLS) : objs.filter(o => o.drill).map(o => o.drill);
     if (drills.length) side += `<div><div class="sec-title">Failure drills <span>test your design</span></div>${drills.map(k => {
       const d = DRILLS[k], gated = d.needs && !procDone(d.needs);
-      return `<div class="drill"><span class="part-ico">${ICON[d.icon]}</span><span class="grow"><b>${d.name}</b><small>${gated ? `Needs ${lc(PROCS[d.needs].name)}` : S.passed[k] ? d.desc : `${d.desc} A failure costs SLA credits.`}</small></span>${S.passed[k] ? chip("good", "Passed") : ""}<button class="btn ${S.passed[k] ? "ghost" : "primary"} sm" data-act="drill" data-k="${k}" ${S.drill || gated ? "disabled" : ""}>${ICON.play} ${S.passed[k] ? "Rerun" : "Run"}</button></div>`;
+      return `<div class="drill"><span class="part-ico">${ICON[d.icon]}</span><span class="grow"><b>${d.name}</b><small>${gated ? `Needs ${lc(PROCS[d.needs].name)}` : S.passed[k] ? d.desc : `${d.desc} A failure costs SLA credits.`}</small></span>${S.passed[k] ? chip("good", "Passed") : ""}<button class="btn ${S.passed[k] ? "ghost" : "primary"} sm" data-act="drill" data-k="${k}" ${S.drill || gated || S.event || S.forecast ? "disabled" : ""}>${ICON.play} ${S.passed[k] ? "Rerun" : "Run"}</button></div>`;
     }).join("")}</div>`;
   } else if (S.tab === "handbook") {
     // the handbook is a large string: rebuild it only when something it shows has changed
@@ -2361,7 +2448,7 @@ function frame() {
     simulate(dt);
     updateLeds(dt);
     tickPops(dt);
-    const chillerDown = S.drill?.key === "chillerFail";
+    const chillerDown = S.drill?.key === "chillerFail" || S.event?.key === "maint";
     if (!REDUCED) fans.forEach((f, i) => { if (!(chillerDown && i < 2)) f.rotation.y += dt * (5 + (i % 3)); });
     const now = performance.now() / 1000;
     for (const inc of S.incidents) inc.pin.position.y = 2.4 + (REDUCED ? 0 : Math.sin(now * 2.4 + inc.rack.x) * 0.15);
