@@ -177,7 +177,8 @@ svg { display: block; flex: none; }
 .lesson-top .x { margin-left: auto; border: 0; background: transparent; color: var(--muted); border-radius: 7px; padding: 4px; }
 .lesson-top .x:hover { background: var(--wash); color: var(--ink); }
 .specs { display: flex; gap: 6px; flex-wrap: wrap; }
-.lesson-foot { display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+/* sticky so the Build button stays in view while a long card body scrolls (short laptops) */
+.lesson-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: sticky; bottom: -14px; margin: 0 -16px -14px; padding: 10px 16px 14px; background: var(--panel-solid); border-top: 1px solid var(--line); }
 .lesson-foot .why { flex: 1 1 160px; font-size: 11.5px; color: var(--bad); font-weight: 600; min-width: 0; }
 .lesson-foot .why.ok { color: var(--muted); font-weight: 500; }
 
@@ -218,6 +219,9 @@ svg { display: block; flex: none; }
 .modal .result p { margin: 2px 0 0; }
 .modal .concept { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
 .modal .foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+/* boot overlay: shown while three.js loads (fades in late so a fast load never flashes it); the first rendered frame removes it, bootFail() reuses it */
+#boot { z-index: 30; animation: fadein .2s .35s both; }
+@keyframes fadein { from { opacity: 0; } }
 .learned { margin: 0; padding-left: 18px; }
 .learned li { margin: 3px 0; }
 
@@ -271,6 +275,7 @@ svg { display: block; flex: none; }
   .mapctl { right: 352px; }
   .build { right: 352px; }
   .kpis { max-width: calc(100% - 400px); }
+  .kpi { min-width: 136px; padding: 9px 11px 9px 9px; }
   .levels .lvl span { display: none; }
   .lvl { padding: 5px; }
 }
@@ -282,17 +287,20 @@ svg { display: block; flex: none; }
   .stage { display: flex; flex-direction: column; gap: 12px; padding: 0 16px 20px; }
   .canvas-wrap { position: relative; inset: auto; height: 56vh; min-height: 360px; margin: 0 -16px; }
   .kpis { top: 12px; left: 12px; right: 12px; max-width: none; }
-  .kpi { min-width: 142px; padding: 8px 11px 8px 8px; }
+  .kpi { min-width: 124px; padding: 8px 11px 8px 8px; }
   .kpi .ico { width: 30px; height: 30px; }
   .kpi .val { font-size: 16px; }
+  .kpi .sub { white-space: normal; }
   .mapctl { top: auto; bottom: 12px; right: 12px; flex-direction: row; }
   .mapctl hr { border-top: 0; border-left: 1px solid var(--line); margin: 4px 3px; }
   .side, .build, .lesson { position: static; width: auto; max-height: none; }
+  .lesson-foot { position: static; margin: 0; padding: 10px 0 0; background: transparent; }
   .side { order: 1; }
   .lesson { order: 2; }
   .build { order: 3; }
   .side-body { max-height: none; overflow: visible; }
-  .toasts { top: 64px; transform: translateX(-50%); }
+  .toasts { top: auto; bottom: 60px; transform: translateX(-50%); }
+  .toast { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bcard.hint, .toast { animation: none; }
@@ -339,9 +347,11 @@ svg { display: block; flex: none; }
   </main>
 </div>
 <div id="modalRoot"></div>
+<div id="boot" class="scrim" aria-live="polite"><div class="modal"><div class="eyebrow">Loading</div><h2>Setting up your campus…</h2><p class="lead">Fetching the 3D engine (about 600 kB).</p></div></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
 <script>
 (() => {
 "use strict";
@@ -397,6 +407,13 @@ const ICON = {
 };
 $("#logo").innerHTML = `<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 29 9.5v13L16 30 3 22.5v-13z" fill="#2f5bea"/><path d="M16 2 29 9.5 16 17 3 9.5z" fill="#6f8cff"/><path d="M16 17v13L3 22.5v-13z" fill="#1f45c7"/><path d="M9 20.5h.01M9 17h.01" stroke="#7df0b8" stroke-width="2.4" stroke-linecap="round"/></svg>`;
 document.querySelectorAll("[data-icon]").forEach(el => { el.outerHTML = ICON[el.dataset.icon]; });
+/* honest failure screen when the 3D engine or WebGL is unavailable: written into the boot overlay, which the first rendered frame removes */
+function bootFail(title, body) {
+  const html = `<div class="modal" role="alertdialog"><div class="result fail"><div class="ico-tile">${ICON.alert}</div><div><b>${title}</b><p>${body}</p></div></div><div class="foot"><button class="btn primary lg" onclick="location.reload()">Reload</button></div></div>`;
+  const b = document.getElementById("boot");
+  if (b) { b.hidden = false; b.innerHTML = html; } else $("#modalRoot").innerHTML = `<div class="scrim">${html}</div>`;
+}
+if (typeof THREE === "undefined" || !THREE.OrbitControls) { bootFail("Couldn't load the 3D engine", "The game loads three.js from cdn.jsdelivr.net and needs WebGL. Corporate networks sometimes block CDNs: check your connection or ad blocker, then reload."); return; }
 /* =====================================================================
    CURRICULUM: sites, buildings, equipment, processes, levels, drills
    ===================================================================== */
@@ -877,10 +894,14 @@ function blocker(k) {
    3D SCENE
    ===================================================================== */
 const wrap = $("#canvasWrap"), canvas = $("#scene");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); }
+catch (e) { bootFail("Your browser blocked WebGL", "Enable hardware acceleration or try Chrome or Edge; remote-desktop sessions often lack WebGL."); return; }
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// the shadow map is re-rendered only when something that casts a shadow appeared, moved or vanished (set shadowsDirty = true)
+renderer.shadowMap.autoUpdate = false; let shadowsDirty = true;
 const scene = new THREE.Scene();
 const SKY = new THREE.Color(0xe9edf7), SKY_DARK = new THREE.Color(0x8e98b4);
 scene.background = SKY.clone();
@@ -978,9 +999,9 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), mat(COL.ground)
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 box(56, 0.08, 29, COL.pad, 5.5, 0, -3.5, scene, false);
 box(400, 0.1, 6, COL.road, 0, 0, 14, scene, false);
-box(6, 0.1, 60, COL.road, -26, 0, -19, scene, false);
-for (let x = -120; x <= 120; x += 5) if (Math.abs(x + 26) > 4) box(2.2, 0.02, 0.18, 0xffffff, x, 0.1, 14, scene, false);
-for (let z = -46; z <= 8; z += 5) box(0.18, 0.02, 2.2, 0xffffff, -26, 0.1, z, scene, false);
+box(6, 0.1, 60, COL.road, -28, 0, -19, scene, false);
+for (let x = -120; x <= 120; x += 5) if (Math.abs(x + 28) > 4) box(2.2, 0.02, 0.18, 0xffffff, x, 0.1, 14, scene, false);
+for (let z = -46; z <= 8; z += 5) box(0.18, 0.02, 2.2, 0xffffff, -28, 0.1, z, scene, false);
 box(400, 0.03, 0.14, 0xffffff, 0, 0.1, 11.2, scene, false);
 box(400, 0.03, 0.14, 0xffffff, 0, 0.1, 16.8, scene, false);
 
@@ -999,7 +1020,7 @@ function tree(x, z, s = 1) {
   const top = new THREE.Mesh(new THREE.SphereGeometry(0.85 * s, 16, 12), mat(Math.random() < 0.5 ? COL.tree : COL.tree2));
   top.scale.y = 1.35; top.position.set(x, 0.9 * s + 1.05 * s, z); top.castShadow = true; scene.add(top);
 }
-[[-33, -10], [-33, -2], [-34, 6], [-31, -18], [-19, -15], [-11, -15], [-3, -14], [31, -6], [31, 2], [30, 7], [22, 9], [-10, 21], [2, 20.5], [16, 21], [28, 20], [-22, 20], [34, -14], [6.5, 7.5], [-4, 7.5]]
+[[-33, -10], [-33, -2], [-34, 6], [-34, -18], [-19, -15], [-11, -15], [-3, -14], [31, -6], [31, 2], [30, 7], [22, 9], [-10, 21], [2, 20.5], [16, 21], [28, 20], [-22, 20], [34, -14], [6.5, 7.5], [-1, -12]]
   .forEach(([x, z], i) => tree(x, z, 0.85 + (i % 3) * 0.15));
 
 /* ---------- Hall B: your building from day one (cutaway) ---------- */
@@ -1028,7 +1049,7 @@ const ROWS = [
 ROWS.forEach(r => { const d = decal(badgeTex(r.n), 0.7, 0.7, hallB); d.rotation.x = -Math.PI / 2; d.position.set(3.05, 0.27, r.z); });
 // hangar: arched steel ribs and a half-round end wall
 const hangarExtras = new THREE.Group(); scene.add(hangarExtras);
-for (const x of [2.5, 6.3, 10.1, 13.9, 17.5]) {
+for (const x of [2.5, 7.9, 12.5, 17.5]) {
   const rib = new THREE.Mesh(new THREE.TorusGeometry(6.2, 0.13, 8, 40, Math.PI), mat(0x9aa6c4, { roughness: 0.5 }));
   rib.rotation.y = Math.PI / 2; rib.position.set(x, 0.25, -2); rib.castShadow = true; hangarExtras.add(rib);
 }
@@ -1046,7 +1067,9 @@ hallB.visible = false;
 // empty lot marker for site selection
 const lot = new THREE.Group(); scene.add(lot);
 box(16, 0.05, 13, 0xe9edf6, 10, 0.08, -2, lot, false);
-for (const [x, z] of [[2, -8.5], [18, -8.5], [2, 4.5], [18, 4.5]]) { cyl(0.06, 0.06, 0.9, COL.orange, x, 0, z, lot, 8); }
+// the survey stakes pulse while the lot is the thing to click (first run: pick a site; then: buy a building)
+const stakeMat = new THREE.MeshStandardMaterial({ color: COL.orange, emissive: 0xff7a1a, emissiveIntensity: 0, roughness: 0.6 });
+for (const [x, z] of [[2, -8.5], [18, -8.5], [2, 4.5], [18, 4.5]]) { cyl(0.06, 0.06, 0.9, stakeMat, x, 0, z, lot, 8); }
 info(lot, "lot");
 
 /* racks */
@@ -1116,7 +1139,7 @@ slot("fiber", g => {
   box(1.0, 0.06, 0.7, 0x7d859c, 3.4, 0.08, 5.6, g, false);
   box(0.8, 0.02, 0.5, 0x5d667e, 3.4, 0.14, 5.6, g, false);
   for (const z of [6.9, 8.4, 9.9]) { cyl(0.07, 0.07, 0.75, COL.orange, 3.4, 0, z, g); cyl(0.075, 0.075, 0.1, 0xffffff, 3.4, 0.55, z, g); }
-  box(0.5, 0.9, 0.35, 0x2a3350, 3.0, 0.25, 3.6, g);
+  box(0.5, 0.9, 0.35, 0x2a3350, 3.0, 0.25, 1.5, g);
 });
 slot("upsSmall", g => {
   box(0.6, 1.6, 0.95, COL.white, 3.08, 0.25, -1.4, g);
@@ -1138,7 +1161,7 @@ for (const [x, z] of [[14.0, 6.4], [16.4, 6.4], [14.0, 8.8], [16.4, 8.8]]) slot(
 const GEN_Z = [-1.6, 1.2, 4.0, 6.8, 9.6, -4.4];
 const genPad = box(5.2, 0.12, 17, 0xd9deeb, -20.5, 0, 2.6, scene, false); genPad.visible = false;
 const fuelTank = new THREE.Group(); scene.add(fuelTank); fuelTank.visible = false;
-{ const t = cyl(0.75, 0.75, 4.0, COL.white, 0, 0, 0, fuelTank); t.rotation.x = Math.PI / 2; t.position.set(-16.9, 0.9, 8.0); box(0.2, 0.5, 3.4, 0x8f98b0, -16.9, 0, 8.0, fuelTank); info(fuelTank, "fuel"); }
+{ const t = cyl(0.75, 0.75, 4.0, COL.white, 0, 0, 0, fuelTank); t.rotation.x = Math.PI / 2; t.position.set(-16.9, 0.9, 5.0); box(0.2, 0.5, 3.4, 0x8f98b0, -16.9, 0, 5.0, fuelTank); info(fuelTank, "fuel"); }
 const genGroups = GEN_Z.map(z => slot("gen", g => {
   const x = -20.5;
   box(4.0, 2.0, 1.9, COL.white, x, 0.12, z, g);
@@ -1234,7 +1257,7 @@ slot("hallA", g => {
   for (let x = -15.8; x <= -0.2; x += 0.8) box(0.14, 0.12, 12.6, COL.blueRib, x, 4.75, -3, g, false);
   const disk = cyl(1.8, 1.8, 0.08, COL.white, -8, 4.86, -3, g); disk.castShadow = false;
   const lg = decal(textTexture((c, w, h) => logoPath(c, w / 2 - 90, h / 2 - 90, 180), 256, 256), 2.6, 2.6, g); lg.rotation.x = -Math.PI / 2; lg.position.set(-8, 4.95, -3);
-  const l = decal(word("HALL 2"), 4.4, 1.1, g); l.rotation.y = Math.PI / 2; l.position.set(0.03, 3.3, -3);
+  const l = decal(word("HALL 2"), 4.4, 1.1, g); l.rotation.x = -Math.PI / 2; l.position.set(-8, 4.96, 0.6);
   [-12.5, -8, -3.5].forEach((bx, i) => {
     box(3.0, 3.3, 0.12, COL.white, bx, 0.15, 3.02, g, false);
     box(2.5, 2.75, 0.14, COL.ink, bx, 0.45, 3.04, g, false);
@@ -1242,14 +1265,13 @@ slot("hallA", g => {
   });
   box(16, 0.6, 1.6, 0xc6cde0, -8, 0, 3.8, g);
   for (const x of [-14.75, -10.25, -5.75, -1.25]) box(0.12, 0.02, 6.2, 0xf0c24a, x, 0.09, 7.7, g, false);
-  pallet(-12.5, 2.2, 2, g).scale.setScalar(0.8);
-  pallet(-3.5, 2.2, 2, g).scale.setScalar(0.8);
+  for (const px of [-12.5, -3.5]) { const p = pallet(px, 3.8, 2, g); p.scale.setScalar(0.8); p.position.y = 0.6; }
   pallet(-1.0, 6.2, 1, g);
 });
 // re-pivot groups on their own footprint so the pop-in grows from the right spot
 function pivot(g) { const c = new THREE.Box3().setFromObject(g).getCenter(new THREE.Vector3()); c.y = 0; g.children.forEach(ch => ch.position.sub(c)); g.position.copy(c); }
 for (const k in SLOTS) SLOTS[k].forEach(pivot);
-[hallB, hangarExtras, warehouseExtras].forEach(pivot);
+[hallB, hangarExtras, warehouseExtras, fuelTank].forEach(pivot);
 
 /* trucks */
 function makeTruck(cabColor, name, tagline) {
@@ -1277,10 +1299,11 @@ const easeBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.po
 truck.start = () => {
   if (truck.phase !== "idle") return;
   truck.dockX = n("hallA") ? -8 : 9.5; truck.dockZ = n("hallA") ? 8.3 : 8.2;
-  truck.phase = "in"; truck.g.visible = true; truck.g.position.set(-70, 0, LANE_Z); truck.g.rotation.y = 0;
+  truck.phase = "in"; truck.g.visible = true; truck.g.position.set(-70, 0, LANE_Z); truck.g.rotation.y = 0; invalidateHit();
 };
 truck.update = dt => {
   const p = truck.g.position;
+  if (truck.phase !== "idle") shadowsDirty = true;
   switch (truck.phase) {
     case "in": p.x += 16 * dt; if (p.x >= truck.dockX) { p.x = truck.dockX; truck.phase = "turn1"; truck.turn = 0; } break;
     case "turn1": truck.turn = Math.min(1, truck.turn + dt / 0.9); truck.g.rotation.y = -Math.PI / 2 * ease(truck.turn); if (truck.turn >= 1) truck.phase = "back"; break;
@@ -1288,7 +1311,7 @@ truck.update = dt => {
     case "docked": truck.wait -= dt; if (truck.wait <= 0) truck.phase = "out"; break;
     case "out": p.z += 3.8 * dt; if (p.z >= LANE_Z) { p.z = LANE_Z; truck.phase = "turn2"; truck.turn = 0; } break;
     case "turn2": truck.turn = Math.min(1, truck.turn + dt / 0.9); truck.g.rotation.y = -Math.PI / 2 * (1 - ease(truck.turn)); if (truck.turn >= 1) truck.phase = "leave"; break;
-    case "leave": p.x += 16 * dt; if (p.x > 75) { truck.phase = "idle"; truck.g.visible = false; } break;
+    case "leave": p.x += 16 * dt; if (p.x > 75) { truck.phase = "idle"; truck.g.visible = false; invalidateHit(); } break;
   }
 };
 
@@ -1314,18 +1337,21 @@ function walk(c, dt) {
   const p = c.path[0], pos = c.g.position;
   const dx = p.x - pos.x, dz = p.z - pos.z, d = Math.hypot(dx, dz), s = 2.8 * dt;
   if (d > 0.001) c.g.rotation.y = Math.atan2(dx, dz);
+  shadowsDirty = true;
   if (d <= s) { pos.x = p.x; pos.z = p.z; c.path.shift(); } else { pos.x += dx / d * s; pos.z += dz / d * s; }
   return c.path.length === 0;
 }
 
 /* pins, rings */
 const SEV = { warn: 0xf2a31b, bad: 0xe2484e };
+// shared pin geometry: only the colored material is per incident (disposed in resolve()); pins cast no shadow so bobbing never dirties the shadow map
+const PIN_SPH = new THREE.SphereGeometry(0.42, 22, 16), PIN_CONE = new THREE.ConeGeometry(0.3, 0.75, 22), PIN_DOT = new THREE.SphereGeometry(0.17, 14, 10);
 function makePin(color) {
   const g = new THREE.Group();
   const m = new THREE.MeshStandardMaterial({ color, roughness: 0.35 });
-  const sph = new THREE.Mesh(new THREE.SphereGeometry(0.42, 22, 16), m); sph.position.y = 1.0; sph.castShadow = true;
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.75, 22), m); cone.rotation.x = Math.PI; cone.position.y = 0.55;
-  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10), mat(0xffffff, { roughness: 0.4 })); dot.position.set(0.24, 1.12, 0.24);
+  const sph = new THREE.Mesh(PIN_SPH, m); sph.position.y = 1.0; sph.castShadow = false;
+  const cone = new THREE.Mesh(PIN_CONE, m); cone.rotation.x = Math.PI; cone.position.y = 0.55;
+  const dot = new THREE.Mesh(PIN_DOT, mat(0xffffff, { roughness: 0.4 })); dot.position.set(0.24, 1.12, 0.24);
   g.add(sph, cone, dot); g.userData.mat = m; g.userData.hit = [sph, cone, dot]; g.scale.setScalar(1.3);
   scene.add(g); return g;
 }
@@ -1334,8 +1360,9 @@ selRing.rotation.x = -Math.PI / 2; selRing.visible = false; scene.add(selRing);
 
 /* pop-in animations */
 const pops = [];
-function popIn(obj) { obj.visible = true; obj.scale.setScalar(0.001); pops.push({ obj, t: 0 }); }
+function popIn(obj) { obj.visible = true; obj.scale.setScalar(0.001); pops.push({ obj, t: 0 }); shadowsDirty = true; invalidateHit(); }
 function tickPops(dt) {
+  if (pops.length) shadowsDirty = true;
   for (let i = pops.length - 1; i >= 0; i--) {
     const p = pops[i]; p.t = Math.min(1, p.t + dt / 0.55);
     p.obj.scale.setScalar(Math.max(0.001, REDUCED ? 1 : easeBack(p.t)));
@@ -1414,13 +1441,13 @@ function buyBuilding(key) {
   const b = BUILDINGS[key], cost = Math.round(b.cost * site().land / 1000) * 1000;
   if (S.budget < cost) { toast(`That costs ${money(cost)}. You have ${money(S.budget)}.`, "warn"); return; }
   S.budget -= cost; S.building = key; learn("building");
-  lot.visible = false;
+  lot.visible = false; shadowsDirty = true; invalidateHit();
   popIn(hallB);
   if (key === "hangar") popIn(hangarExtras);
   if (key === "warehouse") popIn(warehouseExtras);
   closeModal();
   toast(`${b.name} bought for ${money(cost)}.`, "good");
-  flyTo(8, -2, 1.3);
+  flyTo(8, -2, zoomFor(1.3));
   renderAll(); checkLevel();
 }
 
@@ -1556,22 +1583,23 @@ function startLevel(lv) {
   if (lv > 0) S.budget = Math.max(S.budget, L.grant);
   learn(L.concept);
   if (lv === 1) learn("jci");
-  flyTo(L.camera.x, L.camera.z, L.camera.zoom);
-  if (lv >= 2) { crews.forEach(c => c.g.visible = true); learn("remote"); }
+  flyTo(L.camera.x, L.camera.z, zoomFor(L.camera.zoom));
+  if (lv >= 2) { crews.forEach(c => c.g.visible = true); learn("remote"); shadowsDirty = true; invalidateHit(); }
   S.nextIncident = S.t + 30;
   S.selected = null;
   invalidate();
   const c = CONCEPTS[L.concept];
-  const note = lv === 0 ? "Each step teaches one part of the process. Hover anything on the map to see what it is. Figures are illustrative and simplified for play. Each second of play stands for about a project day."
+  const note = lv === 0 ? "Each step teaches one part of the process. Tap or hover anything on the map to see what it is. Figures are illustrative and simplified for play. Each second of play stands for about a project day."
     : lv === 1 ? "Build cards show who makes each part: <b>JCI</b>, <b>JCI option</b> (pick JCI or another vendor) or <b>Non-JCI</b>. Use the JCI filter to see Johnson Controls parts."
     : "From now on, racks occasionally fail. Click an alert pin to send a technician.";
   showModal(`
     <div class="eyebrow">${lv ? `Level ${L.n} of ${LEVELS.length - 1} · ${L.tier}` : "Getting started"}</div>
     <h2>${L.name}</h2>
     <p class="lead">${esc(L.story)}</p>
-    <div class="concept"><div class="lesson-top" style="margin-bottom:8px"><span class="part-ico">${ICON[c.icon]}</span><div><div class="eyebrow">Key idea</div><h3 style="margin:0;font-size:15px">${c.name}</h3></div></div>${lessonBody(c)}</div>
+    ${lv === 0 ? `<details class="hb"><summary><span class="part-ico">${ICON[c.icon]}</span><span>Why location matters</span></summary>${lessonBody(c)}</details>`
+      : `<div class="concept"><div class="lesson-top" style="margin-bottom:8px"><span class="part-ico">${ICON[c.icon]}</span><div><div class="eyebrow">Key idea</div><h3 style="margin:0;font-size:15px">${c.name}</h3></div></div>${lessonBody(c)}</div>`}
     <p class="note">${note}</p>
-    <div class="foot"><button class="btn primary lg" data-act="closeModal">${lv === 0 ? "Start planning" : "Let's go"}</button></div>`);
+    <div class="foot">${lv === 0 ? `<button class="btn ghost lg" data-act="closeModal">Look around first</button><button class="btn primary lg" data-act="startProc" data-k="site">Pick a location</button>` : `<button class="btn primary lg" data-act="closeModal">Let's go</button>`}</div>`);
   renderAll();
 }
 function showSiteModal() {
@@ -1634,7 +1662,7 @@ function assign(c, inc) {
   toast(`${c.name.split(" ")[0]} is heading to ${inc.rack.id}.`);
 }
 function resolve(inc) {
-  inc.rack.incident = null; scene.remove(inc.pin);
+  inc.rack.incident = null; scene.remove(inc.pin); inc.pin.userData.mat.dispose(); shadowsDirty = true;
   S.incidents = S.incidents.filter(i => i !== inc);
   toast(`${inc.rack.id} fixed.`, "good");
 }
@@ -1678,8 +1706,8 @@ function simulate(dt) {
     const dark = d.power ? (S.drill.result.ok ? k * 0.35 : k * 0.75) : 0;
     hemi.intensity = 0.62 - dark * 0.45; sun.intensity = 0.58 - dark * 0.4;
     scene.background.copy(SKY).lerp(SKY_DARK, dark);
-    if (d.power && S.drill.result.ok) genGroups.forEach((g, i) => { if (i < n("gen")) g.position.y = Math.sin(S.t * 60 + i) * 0.03 * k; });
-    if (S.drill.t >= S.drill.dur) { hemi.intensity = 0.62; sun.intensity = 0.58; scene.background.copy(SKY); genGroups.forEach(g => g.position.y = 0); finishDrill(); }
+    if (d.power && S.drill.result.ok) { genGroups.forEach((g, i) => { if (i < n("gen")) g.position.y = Math.sin(S.t * 60 + i) * 0.03 * k; }); shadowsDirty = true; }
+    if (S.drill.t >= S.drill.dur) { hemi.intensity = 0.62; sun.intensity = 0.58; scene.background.copy(SKY); genGroups.forEach(g => g.position.y = 0); shadowsDirty = true; finishDrill(); }
   }
 }
 function updateLeds(dt) {
@@ -1712,12 +1740,15 @@ const EXTRA_INFO = {
   lot: () => ({ name: "Empty lot", what: S.site ? "Your future campus. Buy a building to start." : "Choose a location to start your data center." }),
 };
 function visibleChain(o) { while (o) { if (!o.visible) return false; o = o.parent; } return true; }
+/* the visible raycast targets change only when something is built, shown or hidden: cached until invalidateHit() */
+let hitTargets = null;
+function invalidateHit() { hitTargets = null; }
 function hit(e) {
   const b = canvas.getBoundingClientRect();
   ndc.set(((e.clientX - b.left) / b.width) * 2 - 1, -((e.clientY - b.top) / b.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  const pins = S.incidents.flatMap(i => i.pin.userData.hit);
-  const targets = [...pins, ...racks.filter(r => r.built).map(r => r.mesh), ...INFO.filter(visibleChain)];
+  if (!hitTargets) hitTargets = [...racks.filter(r => r.built).map(r => r.mesh), ...INFO.filter(visibleChain)];
+  const targets = [...S.incidents.flatMap(i => i.pin.userData.hit), ...hitTargets];
   const h = ray.intersectObjects(targets, false)[0];
   if (!h) return null;
   const u = h.object.userData;
@@ -1726,11 +1757,24 @@ function hit(e) {
   return { info: u.info };
 }
 const tip = $("#tip");
-canvas.addEventListener("pointermove", e => {
-  if (e.buttons) { tip.hidden = true; return; }
+/* hover: pointermove only records the last event; hoverTick() raycasts once per frame and rebuilds the tooltip only when its subject changed */
+let lastMove = null, tipKey = null;
+canvas.addEventListener("pointermove", e => { if (e.buttons) { tip.hidden = true; lastMove = null; return; } lastMove = e; });
+canvas.addEventListener("pointerleave", () => { tip.hidden = true; lastMove = null; tipKey = null; });
+function hoverTick() {
+  const e = lastMove; if (!e) return; lastMove = null;
   const h = hit(e);
-  canvas.classList.toggle("pointing", !!(h && (h.rack || ITEMS[h.info?.key])));
-  if (!h) { tip.hidden = true; return; }
+  canvas.classList.toggle("pointing", !!(h && (h.rack || ITEMS[h.info?.key] || h.info?.key === "lot")));
+  if (!h) { tip.hidden = true; tipKey = null; return; }
+  const key = h.incident ? h.incident.id + "|" + h.incident.state + "|" + (h.incident.crew?.id || "") : h.rack ? "r|" + h.rack.id : "i|" + h.info.key + "|" + (S.picks[h.info.key] || []).join(",");
+  if (key !== tipKey) { tipKey = key; tip.innerHTML = tipHTML(h); }
+  const b = wrap.getBoundingClientRect();
+  let x = e.clientX - b.left + 14, y = e.clientY - b.top + 14;
+  if (x + 260 > b.width) x -= 280;
+  if (y + 160 > b.height) y -= 170;
+  tip.style.left = x + "px"; tip.style.top = y + "px"; tip.hidden = false;
+}
+function tipHTML(h) {
   let html;
   if (h.rack) {
     const r = h.rack, inc = r.incident;
@@ -1743,14 +1787,8 @@ canvas.addEventListener("pointermove", e => {
     const title = it?.options && picks?.length ? [...new Set(picks.map(i => it.options[i].name))].join(" + ") : x.name;
     html = `<b>${esc(title)}</b>${it ? ` ${brandTag(k, picks)}<div class="row"><span>Spec</span><span>${it.spec}</span></div>` : ""}<p>${esc(x.what)}</p>${it ? `<div class="hint">Click for the full lesson</div>` : ""}`;
   }
-  tip.innerHTML = html;
-  const b = wrap.getBoundingClientRect();
-  let x = e.clientX - b.left + 14, y = e.clientY - b.top + 14;
-  if (x + 260 > b.width) x -= 280;
-  if (y + 160 > b.height) y -= 170;
-  tip.style.left = x + "px"; tip.style.top = y + "px"; tip.hidden = false;
-});
-canvas.addEventListener("pointerleave", () => { tip.hidden = true; });
+  return html;
+}
 let downAt = null;
 canvas.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
 canvas.addEventListener("pointerup", e => {
@@ -1762,10 +1800,12 @@ canvas.addEventListener("pointerup", e => {
     if (h.rack.incident && h.rack.incident.state === "open") { dispatch(h.rack.incident); renderAll(); }
     else selectItem(h.rack.gpu ? "gpu" : "rack");
   } else if (ITEMS[h.info.key]) selectItem(h.info.key);
-  else if (h.info.key === "lot" && !S.site) startProc("site");
+  else if (h.info.key === "lot") { if (!S.site) startProc("site"); else if (!S.building && !procBlocker("building")) showBuildingModal(); else selectProc("building"); }
 });
 
 let camAnim = null;
+/* phones show the whole hall rather than a corner of it: scale every scripted zoom level down on narrow screens */
+const zoomFor = z => innerWidth <= 900 ? Math.max(0.6, z * 0.65) : z;
 function flyTo(x, z, zoom) { camAnim = { t: 0, from: controls.target.clone(), to: new THREE.Vector3(x, 0, z), z0: camera.zoom, z1: zoom ?? camera.zoom, offset: camera.position.clone().sub(controls.target) }; }
 function rotateView(a) { const off = camera.position.clone().sub(controls.target); off.applyAxisAngle(new THREE.Vector3(0, 1, 0), a); camera.position.copy(controls.target).add(off); controls.update(); }
 
@@ -1790,7 +1830,7 @@ document.addEventListener("click", e => {
     if (a === "zoomin" || a === "zoomout") { camera.zoom = clamp(camera.zoom * (a === "zoomin" ? 1.25 : 0.8), controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); }
     else if (a === "rotl") rotateView(Math.PI / 4);
     else if (a === "rotr") rotateView(-Math.PI / 4);
-    else if (a === "home") { const L = S.completed ? { x: 2, z: -2, zoom: 0.85 } : LEVELS[S.level].camera; camera.position.copy(controls.target).add(CAM_OFFSET); flyTo(L.x, L.z, L.zoom); }
+    else if (a === "home") { const L = S.completed ? { x: 2, z: -2, zoom: 0.85 } : LEVELS[S.level].camera; camera.position.copy(controls.target).add(CAM_OFFSET); flyTo(L.x, L.z, zoomFor(L.zoom)); }
     else if (a === "item") selectItem(k);
     else if (a === "proc") selectProc(k);
     else if (a === "startProc") startProc(k);
@@ -2070,7 +2110,7 @@ function kpi(icon, label, val, unit, sub, cls) {
    LOOP
    ===================================================================== */
 const clockT = new THREE.Clock();
-let uiClock = 0, errAt = 0, errShown = false;
+let uiClock = 0, errAt = 0, errShown = false, booted = false;
 function frame() {
   requestAnimationFrame(frame); // re-arm first so one bad frame never freezes the game
   try {
@@ -2082,6 +2122,7 @@ function frame() {
     if (!REDUCED) fans.forEach((f, i) => { if (!(chillerDown && i < 2)) f.rotation.y += dt * (5 + (i % 3)); });
     const now = performance.now() / 1000;
     for (const inc of S.incidents) inc.pin.position.y = 2.4 + (REDUCED ? 0 : Math.sin(now * 2.4 + inc.rack.x) * 0.15);
+    if (lot.visible && !REDUCED) stakeMat.emissiveIntensity = 0.3 + 0.3 * Math.sin(now * 3);
     if (camAnim) {
       camAnim.t = Math.min(1, camAnim.t + dt / 0.9);
       const k = ease(camAnim.t);
@@ -2091,7 +2132,10 @@ function frame() {
       if (camAnim.t >= 1) camAnim = null;
     }
     controls.update();
+    hoverTick();
+    if (shadowsDirty) { renderer.shadowMap.needsUpdate = true; shadowsDirty = false; }
     renderer.render(scene, camera);
+    if (!booted) { booted = true; $("#boot")?.remove(); }
     uiClock += dt;
     if (uiClock > 0.3) { uiClock = 0; renderAll(); }
   } catch (e) {
@@ -2134,8 +2178,9 @@ function restore(d) {
   if (S.building) { hallB.visible = true; lot.visible = false; hangarExtras.visible = S.building === "hangar"; warehouseExtras.visible = S.building === "warehouse"; }
   if (S.level >= 2) crews.forEach(c => c.g.visible = true);
   const cam = S.completed ? { x: 2, z: -2, zoom: 0.85 } : LEVELS[S.level].camera;
-  controls.target.set(cam.x, 0, cam.z); camera.position.set(cam.x, 0, cam.z).add(CAM_OFFSET); camera.zoom = cam.zoom; camera.updateProjectionMatrix(); controls.update();
+  controls.target.set(cam.x, 0, cam.z); camera.position.set(cam.x, 0, cam.z).add(CAM_OFFSET); camera.zoom = zoomFor(cam.zoom); camera.updateProjectionMatrix(); controls.update();
   S.nextIncident = S.t + 30;
+  shadowsDirty = true; invalidateHit();
   invalidate();
 }
 const rackById = id => racks.find(r => r.id === id);
