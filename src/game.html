@@ -261,6 +261,7 @@ svg { display: block; flex: none; }
 .choice .con { color: var(--bad); font-weight: 600; }
 .choice .btn { margin-top: auto; }
 .choice dl.proj { padding-top: 7px; border-top: 1px dashed var(--line); }
+.copybox { flex: none; width: 100%; min-height: 7.6em; margin-top: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--wash); color: inherit; font: 12px/1.45 ui-monospace, Consolas, monospace; resize: none; }
 .choice dl.proj .chip { padding: 1px 6px; font-size: 10px; }
 .preview .eyebrow { margin-right: 2px; }
 .cmp { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -807,6 +808,8 @@ const S = {
   site: null, building: null, selected: null, tab: "mission", cat: "All", drill: null, incidents: [], incSeq: 1, nextIncident: 30,
   uptime: 100, rev: 0, bill: 0, rate: 0, completed: false, levelShown: -1,
   credits: 0, stats: { fixed: 0, breached: 0 }, // SLA credits paid to customers, incidents fixed / overdue (saved)
+  spent: 0, finishedAt: null, levelSpent0: 0, // money invested so far, game clock at campus completion, S.spent when this level began (saved)
+  eventLoss: 0, eventsSeen: { survived: 0, lost: 0 }, // operating-event tallies for the report card (saved; filled in by the events system)
   speed: 1, // fast-forward factor for the economy, clock and processes (not saved)
 };
 const n = k => S.built[k] || 0;
@@ -1473,7 +1476,7 @@ function build(k) {
   const b = blocker(k);
   if (b) { toast(b.why + ".", "warn"); return; }
   const it = ITEMS[k], pick = S.choice[k] ?? 0, cost = costOf(k);
-  S.budget -= cost;
+  S.budget -= cost; S.spent += cost;
   if (it.options) (S.picks[k] = S.picks[k] || []).push(pick);
   if (k === "rack" || k === "gpu") {
     const r = (k === "rack" ? RACK_ORDER : GPU_ORDER).find(r => !r.built);
@@ -1503,7 +1506,7 @@ function startProc(k) {
   if (p.modal) { learn(k); if (p.modal === "site") showSiteModal(); else if (procBlocker(k)?.needProc) toast(procBlocker(k).why + ".", "warn"); else showBuildingModal(); return; }
   const b = procBlocker(k);
   if (b) { toast(b.why + ".", "warn"); return; }
-  S.budget -= procCost(k);
+  S.budget -= procCost(k); S.spent += procCost(k);
   S.tasks[k] = { t: 0, dur: procDur(k), done: false };
   learn(k);
   if (k === "cx13" || k === "cx45") learn("cx");
@@ -1527,7 +1530,7 @@ function buyBuilding(key) {
   if (S.building) return;
   const b = BUILDINGS[key], cost = Math.round(b.cost * site().land / 1000) * 1000;
   if (S.budget < cost) { toast(`That costs ${money(cost)}. You have ${money(S.budget)}.`, "warn"); return; }
-  S.budget -= cost; S.building = key; learn("building");
+  S.budget -= cost; S.spent += cost; S.building = key; learn("building");
   lot.visible = false; shadowsDirty = true; invalidateHit();
   popIn(hallB);
   if (key === "hangar") popIn(hangarExtras);
@@ -1598,8 +1601,79 @@ function showLevelDone() {
     <h2>${last ? "Your AI campus is running" : L.n ? `${L.name} complete` : "You own a site. Time to build."}</h2>
     <p class="lead">${last ? "You've grown a server closet into a megawatt AI campus. Real operators take the same path, one constraint at a time." : `Next up: <b>${next.name}</b> (${next.tier}).`}</p>
     <div class="concept lesson-body"><h4>What you learned</h4><ul class="learned">${L.learned.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
-    ${last ? "" : S.budget >= next.grant ? `<p class="lead">You're already funded for the next level.</p>` : `<p class="lead">Investors top your budget up to <b>${money(next.grant)}</b>.</p>`}
-    <div class="foot"><button class="btn ghost lg" data-act="${last ? "sandbox" : "nextLevel"}">Skip the check</button><button class="btn primary lg" data-act="quiz">Take the ${QUIZ[S.level].qs.length}-question check · up to ${money(QUIZ[S.level].bonus * QUIZ[S.level].qs.length)}</button></div>`, false, "levelDone");
+    <p class="note">This level: spent ${money(S.spent - S.levelSpent0)} · PUE ${C().pue ? C().pue.toFixed(2) : "–"} · uptime ${S.uptime.toFixed(2)}%</p>
+    ${last ? `<div class="concept">${scorecardBody("h3")}</div>` : S.budget >= next.grant ? `<p class="lead">You're already funded for the next level.</p>` : `<p class="lead">Investors top your budget up to <b>${money(next.grant)}</b>.</p>`}
+    <div class="foot"><button class="btn ghost lg" data-act="${last ? "sandbox" : "nextLevel"}">Skip the check</button><button class="btn primary lg" data-act="quiz">Take the ${QUIZ[S.level].qs.length}-question check · up to ${money(QUIZ[S.level].bonus * QUIZ[S.level].qs.length)}</button></div>`, last, "levelDone");
+}
+
+/* ---------- report card: score, stars, JCI ledger and personal best ---------- */
+const BEST_KEY = "dcb-best-v1";
+const loadJSON = k => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } };
+function scoreData() {
+  const c = C(), quizRight = Object.values(S.quiz || {}).reduce((a, r) => a + (+String(r).split("/")[0] || 0), 0), quizTotal = QUIZ.reduce((a, q) => a + q.qs.length, 0),
+    fails = Object.keys(S.failed || {}).length, elapsed = Math.max(0, (S.finishedAt ?? S.clock) - 540);
+  const parts = [["Uptime", Math.round(300 * clamp((S.uptime - 95) / 5, 0, 1))], ["PUE", Math.round(200 * clamp((1.6 - (c.pue || 1.6)) / 0.4, 0, 1))],
+    ["Knowledge checks", Math.round(200 * quizRight / quizTotal)], ["Drills", Math.max(0, 150 - 30 * fails)], ["Pace", Math.round(150 * clamp(1 - (elapsed - 600) / 1800, 0, 1))]];
+  const score = parts.reduce((a, [, v]) => a + v, 0);
+  const grade = score >= 850 ? "S" : score >= 700 ? "A" : score >= 550 ? "B" : "C";
+  const title = { S: "Hyperscale Boss", A: "Enterprise Operator", B: "Site Manager", C: "Closet Keeper" }[grade];
+  const optKeys = ["bms", "chiller", "fire", "security"];
+  const jciAll = optKeys.every(k => (S.picks[k] || []).length && S.picks[k].every(i => ITEMS[k].options[i].jci)) && n("openblue") > 0;
+  const stars = [["Efficient (PUE ≤ 1.25)", c.pue > 0 && c.pue <= 1.25], ["Flawless drills", fails === 0 && Object.keys(S.passed).length > 0], ["Perfect checks", quizRight === quizTotal],
+    ["99.95% uptime", S.uptime >= 99.95], ["All-JCI plant", jciAll], ["Green run (PPA in a cold market)", procDone("ppa") && (S.site === "lulea" || S.site === "columbus")]];
+  return { c, quizRight, quizTotal, fails, elapsed, parts, score, grade, title, stars };
+}
+function jciLedger() {
+  const rows = [], c = C();
+  const noOB = n("openblue") && c.it ? computeCaps({ built: { openblue: 0 } }) : null;
+  if (noOB) rows.push(["OpenBlue optimization", `−10% cooling energy · saves ${money((noOB.facility - c.facility) * c.price * 3600)}/h in this game`]);
+  if (S.picks.bms?.[0] === 0) rows.push(["Metasys BMS", `${SLA()} s to respond · ${S.stats.fixed} fixed, ${S.stats.breached} overdue`]);
+  const ch = S.picks.chiller || [];
+  if (c.it && ch.some(i => ITEMS.chiller.options[i].jci)) {
+    const alt = computeCaps({ picks: ch.map(() => 2) });
+    rows.push([`YORK chillers ×${ch.filter(i => i !== 2).length}`, `plant PUE ${c.pue.toFixed(2)} (vs ${alt.pue.toFixed(2)} with the other vendor)`]);
+  }
+  if (S.picks.fire?.[0] === 0) rows.push(["Tyco SAPPHIRE + Simplex", "clean-agent suppression: no wet servers"]);
+  if (S.picks.security?.[0] === 0) rows.push(["C•CURE 9000 + Illustra", "perimeter → rack access layers"]);
+  return rows;
+}
+// rec is what recordBest() returned when the campus was just finished: the best run before this one, and whether this run beat it
+function scorecardBody(h = "h2", rec = null) {
+  const d = scoreData(), c = d.c, best = rec ? rec.prev : loadJSON(BEST_KEY), ev = S.eventsSeen || {}, ledger = jciLedger();
+  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+  return `<div class="eyebrow">Report card${S.completed ? "" : " · so far"}</div><${h}>${d.grade} · ${d.title}</${h}>
+    <p class="lead">${d.score} of 1000 points${best ? ` · personal best ${+best.score || 0} (${esc(best.site || "")})` : ""}${rec?.record && best ? " " + chip("good", "New record") : ""}</p>
+    <div class="choices">
+      <div class="choice"><h3>Your campus</h3><dl>${row("Market", S.site ? esc(site().name) : "–")}${row("Building", S.building ? esc(bld().name) : "–")}${row("IT load", kw(c.it))}${row("Racks", `${rackCount()} + ${n("gpu")} GPU`)}${row("PUE", c.pue ? c.pue.toFixed(2) : "–")}${row("Uptime", S.uptime.toFixed(2) + "%")}${row("Game time", `${Math.floor(d.elapsed / 60)} h ${Math.round(d.elapsed % 60)} min`)}</dl></div>
+      <div class="choice"><h3>Money${S.spent === 0 && S.level > 0 ? " (partial: older save)" : ""}</h3><dl>${row("Invested", money(S.spent))}${row("Per kW of IT", c.it ? money(S.spent / c.it) : "–")}${row("Cash", money(S.budget))}${row("Profit rate", money(S.rate * 60) + "/h")}${row("SLA credits paid", money(S.credits || 0))}${row("Lost to events", money(S.eventLoss || 0))}</dl><p class="note">Real builds run roughly $8–15M per MW; the game's prices are scaled for play.</p></div>
+      <div class="choice"><h3>Resilience</h3><div class="tierline">${[["UPS N+1", upsN1()], ["Generators N+1", genN1()], ["Cooling N+1", coolN1() && c.airHeat > 0], ["Two carriers", c.carriers >= 2], ["Fire protection", n("fire") > 0], ["Security", n("security") > 0], ["Tier III certified", procDone("tierCert")]].map(([l, ok]) => chip(ok ? "good" : "idle", l)).join("")}</div>
+        <dl>${row("Drills failed", d.fails)}${row("Alerts fixed / overdue", `${S.stats.fixed} / ${S.stats.breached}`)}${row("Events survived / lost", `${+ev.survived || 0} / ${+ev.lost || 0}`)}${row("Knowledge checks", `${d.quizRight} / ${d.quizTotal}`)}</dl></div>
+      <div class="choice"><h3>Score</h3><dl>${d.parts.map(([k, v]) => row(k, v)).join("")}</dl><div class="tierline">${d.stars.map(([l, ok]) => chip(ok ? "good" : "idle", (ok ? "★ " : "☆ ") + l)).join("")}</div></div>
+    </div>
+    ${ledger.length ? `<div class="concept lesson-body"><h4>JCI on this site (in this game)</h4><ul>${ledger.map(([a, b]) => `<li><b>${a}</b>: ${b}</li>`).join("")}</ul></div>` : ""}`;
+}
+function scorecard(rec) { return `${scorecardBody("h2", rec)}<div class="foot"><button class="btn ghost lg" data-act="copySummary">Copy summary</button><button class="btn primary lg" data-act="closeModal">Close</button></div>`; }
+function showReport(rec) { showModal(scorecard(rec), true, "report"); }
+// call once when the campus is finished, before opening the card; returns the previous best and whether this run beat it
+function recordBest() {
+  const d = scoreData(), b = loadJSON(BEST_KEY), record = !b || d.score > (+b.score || 0);
+  if (record) try { localStorage.setItem(BEST_KEY, JSON.stringify({ score: d.score, grade: d.grade, site: site().name.split(",")[0], stars: d.stars.filter(s => s[1]).length, date: Date.now() })); } catch (e) {}
+  return { prev: b, record };
+}
+function copySummary() {
+  const d = scoreData(), c = d.c, txt = `Data Center Boss: ${d.grade} ${d.title}, ${d.score}/1000\n${S.site ? site().name : "No site yet"}${S.building ? ", " + bld().name : ""}\nIT ${kw(c.it)}, PUE ${c.pue ? c.pue.toFixed(2) : "–"}, uptime ${S.uptime.toFixed(2)}%\nInvested ${money(S.spent)}, cash ${money(S.budget)}, SLA credits ${money(S.credits || 0)}\nDrills failed ${d.fails}, checks ${d.quizRight}/${d.quizTotal}, stars ${d.stars.filter(s => s[1]).length}/6`;
+  const fallback = () => {
+    const back = document.activeElement, ta = document.createElement("textarea"); ta.value = txt; ta.readOnly = true; ta.style.cssText = "position:fixed;left:-9999px";
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+    ta.remove(); back?.focus({ preventScroll: true });
+    if (ok) { toast("Summary copied.", "good"); return; }
+    // no clipboard access at all: show the text in the card so it can be selected by hand
+    const foot = $("#modalRoot .modal .foot");
+    if (foot) { let box = $("#modalRoot .copybox"); if (!box) { box = document.createElement("textarea"); box.className = "copybox"; box.readOnly = true; box.rows = 5; foot.before(box); } box.value = txt; box.focus(); box.select(); }
+    toast("Copy blocked by the browser: select the text and copy it.", "warn");
+  };
+  (navigator.clipboard?.writeText(txt) || Promise.reject()).then(() => toast("Summary copied.", "good")).catch(fallback);
 }
 
 /* ---------- knowledge check after each level ---------- */
@@ -1669,13 +1743,15 @@ function finishQuiz() {
   }
   S.quizAns = null; S.quizOrder = null;
   closeModal();
-  if (lv === LEVELS.length - 1) { S.completed = true; flyTo(2, -2, 0.85); } else startLevel(lv + 1);
+  const last = lv === LEVELS.length - 1;
+  if (last) { S.completed = true; S.finishedAt ??= S.clock; flyTo(2, -2, zoomFor(0.85)); } else startLevel(lv + 1);
   // the bonus lands after the next level's funding floor, so it is never swallowed by the top-up
   if (bonus) { S.budget += bonus; toast(`Knowledge check: +${money(bonus)}.`, "good"); }
   save();
+  if (last) showReport(recordBest());
 }
 function startLevel(lv) {
-  S.level = lv;
+  S.level = lv; S.levelSpent0 = S.spent;
   const L = LEVELS[lv];
   if (lv > 0) S.budget = Math.max(S.budget, L.grant);
   learn(L.concept);
@@ -1979,7 +2055,9 @@ document.addEventListener("click", e => {
     else if (a === "closeModal") closeModal();
     else if (a === "showItem") { closeModal(); selectItem(k); }
     else if (a === "nextLevel") { closeModal(); startLevel(S.level + 1); }
-    else if (a === "sandbox") { closeModal(); S.completed = true; flyTo(2, -2, 0.85); save(); }
+    else if (a === "sandbox") { closeModal(); S.completed = true; S.finishedAt ??= S.clock; flyTo(2, -2, zoomFor(0.85)); save(); showReport(recordBest()); }
+    else if (a === "report") showReport();
+    else if (a === "copySummary") copySummary();
     else if (a === "quiz") { S.quizAns = []; S.quizOrder = null; showQuiz(); }
     else if (a === "qa") answerQuiz(+el.dataset.q, +el.dataset.i);
     else if (a === "quizDone") finishQuiz();
@@ -2217,7 +2295,7 @@ function renderSide(c, L, hint, open) {
     const objs = objList(L), doneCount = objs.filter(objDone).length;
     side += `<div class="mission-head"><div class="eyebrow">${L.n ? `Level ${L.n} of ${LEVELS.length - 1}` : "Getting started"}</div><h2>${L.name}</h2><p>${esc(L.story)}</p>
       <div class="tierline">${chip("info", L.tier)}${chip(doneCount === objs.length ? "good" : "idle", `${doneCount}/${objs.length} goals`)}${S.site ? chip("idle", site().name) : ""}${S.building ? chip("idle", bld().name) : ""}${L.n >= 2 ? chip(S.uptime >= 99.9 ? "good" : "warn", `Uptime ${S.uptime.toFixed(2)}%`) : ""}</div></div>`;
-    if (S.completed) side += `<div class="next done"><div class="eyebrow">Campus complete</div><p>You've finished every level. Keep the campus running: fix alerts, add capacity and rerun any drill.</p></div>`;
+    if (S.completed) side += `<div class="next done"><div class="eyebrow">Campus complete</div><p>You've finished every level. Keep the campus running: fix alerts, add capacity and rerun any drill.</p><button class="btn" data-act="report">Report card</button></div>`;
     else if (hint) side += `<div class="next"><div class="eyebrow">Next step</div><p>${hint.text}</p>${hint.label ? `<button class="btn" data-act="hintGo" ${hint.kind === "drill" && S.drill ? "disabled" : ""}>${hint.label}</button>` : ""}</div>`;
     else if (objs.length && doneCount === objs.length && !$("#modalRoot").firstChild) side += `<div class="next"><div class="eyebrow">Level complete</div><p>Every goal is done.</p><button class="btn" data-act="levelDone">Continue</button></div>`;
     side += `<div><div class="sec-title">Goals <span>${L.tier}</span></div>${objs.map(o => {
@@ -2250,7 +2328,7 @@ function renderSide(c, L, hint, open) {
         return `<details class="hb" data-k="${k}" ${HB_OPEN.has(k) ? "open" : ""}><summary><span class="part-ico">${ICON[x.icon]}</span><span>${x.name}</span>${ITEMS[k] ? brandTag(k) : ""}<small>${kind}</small></summary>${lessonBody(x)}${extra}</details>`;
       }).join("")}</div>`;
       side += `<p class="note">Figures are illustrative and simplified for play. Product names are used for education; this game is not affiliated with Johnson Controls or any other vendor.</p>`;
-      side += `<div class="drill"><span class="grow"><b>Progress</b><small>Saved automatically in this browser.${S.quiz ? " Checks: " + Object.entries(S.quiz).map(([l, r]) => `L${l} ${r}`).join(", ") : ""}</small></span><button class="btn ghost sm" id="resetBtn" data-act="reset">Start over</button></div>`;
+      side += `<div class="drill"><span class="grow"><b>Progress</b><small>Saved automatically in this browser.${S.quiz ? " Checks: " + Object.entries(S.quiz).map(([l, r]) => `L${l} ${r}`).join(", ") : ""}</small></span><button class="btn ghost sm" data-act="report">Report card</button><button class="btn ghost sm" id="resetBtn" data-act="reset">Start over</button></div>`;
       hbCache = { key: hbKey, html: side };
     }
   } else {
@@ -2312,7 +2390,7 @@ function frame() {
 /* ---------- save and resume (this browser only) ---------- */
 const SAVE_KEY = "dcb-save-v1";
 let resetting = false; // set by "Start over": stops the 5 s autosave from re-saving before the reload lands
-const SAVE_FIELDS = ["level", "budget", "clock", "built", "picks", "choice", "passed", "failed", "learned", "tasks", "site", "building", "uptime", "completed", "quiz", "credits", "stats"];
+const SAVE_FIELDS = ["level", "budget", "clock", "built", "picks", "choice", "passed", "failed", "learned", "tasks", "site", "building", "uptime", "completed", "quiz", "credits", "stats", "spent", "finishedAt", "levelSpent0", "eventLoss", "eventsSeen"];
 function save() {
   if (resetting) return;
   try {
@@ -2333,11 +2411,15 @@ function restore(d) {
   if (!Number.isFinite(S.budget)) S.budget = LEVELS[S.level].grant;
   if (!SITES[S.site]) S.site = null;
   if (S.building && !BUILDINGS[S.building]) S.building = null;
-  S.spent ??= 0; S.eventLoss ??= 0;
+  if (!Number.isFinite(S.spent)) S.spent = 0;
+  if (!Number.isFinite(S.levelSpent0) || S.levelSpent0 > S.spent) S.levelSpent0 = S.spent;
+  if (!Number.isFinite(S.finishedAt)) S.finishedAt = S.completed ? S.clock : null;
+  if (!Number.isFinite(S.eventLoss)) S.eventLoss = 0;
   if (!Number.isFinite(S.credits)) S.credits = 0;
   if (!S.stats || typeof S.stats !== "object") S.stats = { fixed: 0, breached: 0 };
   S.stats = { fixed: +S.stats.fixed || 0, breached: +S.stats.breached || 0 };
-  S.eventsSeen ??= { survived: 0, lost: 0 };
+  if (!S.eventsSeen || typeof S.eventsSeen !== "object") S.eventsSeen = { survived: 0, lost: 0 };
+  S.eventsSeen = { ...S.eventsSeen, survived: +S.eventsSeen.survived || 0, lost: +S.eventsSeen.lost || 0 };
   for (const k in S.built) if (SLOTS[k]) for (let i = 0; i < S.built[k] && i < SLOTS[k].length; i++) SLOTS[k][i].visible = true;
   (d.racks || []).forEach(id => { const r = rackById(id); if (r) { r.built = true; r.mesh.visible = true; showRackLeds(r); } });
   if (n("gen")) { genPad.visible = true; fuelTank.visible = true; }
@@ -2359,10 +2441,11 @@ if (saved && saved.site) {
 }
 if (resumed) {
   renderAll();
+  const bestRun = loadJSON(BEST_KEY);
   showModal(`
     <div class="eyebrow">Welcome back</div>
     <h2>${S.completed ? "Your campus is still running" : `Level ${S.level}: ${LEVELS[S.level].name}`}</h2>
-    <p class="lead">Your game was saved in this browser: ${esc(site().name)}${S.building ? ", " + esc(bld().name.toLowerCase()) : ""}, ${money(S.budget)} in the bank.</p>
+    <p class="lead">Your game was saved in this browser: ${esc(site().name)}${S.building ? ", " + esc(bld().name.toLowerCase()) : ""}, ${money(S.budget)} in the bank.${bestRun ? ` Best run so far: ${esc(bestRun.grade)}, ${+bestRun.score || 0} points.` : ""}</p>
     <div class="foot"><button class="btn ghost lg" data-act="reset">Start over</button><button class="btn primary lg" data-act="resume">Continue</button></div>`);
 } else startLevel(0);
 layoutLesson();
