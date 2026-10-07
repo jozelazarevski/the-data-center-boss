@@ -64,6 +64,8 @@ svg { display: block; flex: none; }
 .live span { color: var(--ink); font-family: var(--font-data); }
 .live.outage { background: var(--bad-wash); color: var(--bad); }
 .live.outage i { background: var(--bad); box-shadow: 0 0 0 3px rgba(210,63,69,.18); }
+.ff { border: 0; border-radius: 999px; padding: 5px 10px; font-weight: 800; font-size: 12px; background: var(--wash); color: var(--muted); }
+.ff.on { background: var(--accent); color: #fff; }
 .bell { position: relative; border: 0; background: transparent; padding: 6px; border-radius: 8px; }
 .bell:hover { background: var(--wash); }
 .badge { position: absolute; top: 1px; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--bad); color: #fff; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center; }
@@ -239,6 +241,8 @@ svg { display: block; flex: none; }
 .opt b { font-size: 12.5px; }
 .opt small { color: var(--muted); font-size: 11.5px; }
 .opt .cost { font-weight: 800; font-size: 12px; }
+.opt .specs { margin-top: 4px; gap: 4px; }
+.opt .specs .chip { white-space: normal; font-weight: 600; }
 .obj .btn { flex: none; align-self: center; }
 .obj .bar, .lesson .bar { margin-top: 5px; }
 .bar { height: 5px; border-radius: 3px; background: #dfe4f0; overflow: hidden; }
@@ -314,6 +318,7 @@ svg { display: block; flex: none; }
     <div class="spacer"></div>
     <div class="money"><b id="budget">$0</b><small id="rate">+$0/h</small></div>
     <div class="live" id="live"><i></i><span style="font-family:inherit;color:inherit" id="liveText">Grid</span> <span id="clock">09:00</span></div>
+    <button class="ff" id="ffBtn" data-act="speed" aria-label="Fast-forward" aria-pressed="false" title="Fast-forward the clock">1×</button>
     <button class="bell" data-act="alerts" aria-label="Show alerts"><span data-icon="bell"></span><span class="badge" id="bellBadge" hidden>0</span></button>
   </header>
 
@@ -497,17 +502,22 @@ const ITEMS = {
     nums: ["Can cut cooling energy by 20–30%", "In this game: +25% capacity for CRACs and precision ACs", "Blanking panels in empty rack slots matter too"] },
   bms: { name: "Building management", cat: "Controls", level: 2, max: 1, icon: "monitor", spec: "Monitors every system", jci: "option",
     options: [
-      { name: "Metasys", jci: true, cost: 40000, note: "JCI's building automation system: chillers, air handlers, power meters, alarms in one view." },
-      { name: "Other BMS / DCIM", jci: false, cost: 34000, note: "For example Siemens Desigo CC, Honeywell, or Schneider Electric EcoStruxure." },
+      { name: "Metasys", jci: true, cost: 40000, sla: 70, forecast: 25, note: "JCI's building automation system: chillers, air handlers, power meters, alarms in one view.",
+        stats: ["70 s to respond", "25 s event forecast", "Chillers, air handlers, meters, alarms in one view"] },
+      { name: "Other BMS / DCIM", jci: false, cost: 34000, sla: 60, forecast: 12, note: "For example Siemens Desigo CC, Honeywell, or Schneider Electric EcoStruxure.",
+        stats: ["60 s to respond", "12 s event forecast", "Good general BMS; DC-specific sequences vary"] },
     ],
     what: "A building management system (BMS) reads thousands of sensors (temperatures, flows, breaker states) and runs the control sequences for cooling plants. DCIM software adds rack-level power and capacity tracking.",
     why: "You can't run what you can't see. Alarms reach your technicians sooner, so failures get fixed before they turn into outages.",
-    nums: ["A mid-size data hall has thousands of monitored points", "BACnet and Modbus are the common protocols", "In this game: technicians get 70 s instead of 45 s to respond"] },
+    nums: ["A mid-size data hall has thousands of monitored points", "BACnet and Modbus are the common protocols", "In this game: technicians get 70 s (Metasys) or 60 s (other BMS) to respond instead of 45 s, and storms and heat waves are forecast earlier"] },
   chiller: { name: "Chiller", cat: "Cooling", level: 3, max: 6, icon: "snow", spec: "300 kW of cooling", jci: "option",
     options: [
-      { name: "YORK YVAA air-cooled screw", jci: true, cost: 180000, f: 0.27, note: "JCI. Air-cooled, variable speed, no cooling-tower water. A common data center choice." },
-      { name: "YORK YZ magnetic-bearing centrifugal", jci: true, cost: 230000, f: 0.19, water: true, note: "JCI. Water-cooled with oil-free magnetic bearings: very efficient, but needs cooling towers that evaporate water." },
-      { name: "Air-cooled chiller, other vendor", jci: false, cost: 160000, f: 0.31, note: "For example Trane, Carrier or Daikin. Cheaper, a little less efficient in this game." },
+      { name: "YORK YVAA air-cooled screw", jci: true, cost: 180000, f: 0.27, maint: 1, note: "JCI. Air-cooled, variable speed, no cooling-tower water. A common data center choice.",
+        stats: ["PUE factor 0.27", "No cooling-tower water"] },
+      { name: "YORK YZ magnetic-bearing centrifugal", jci: true, cost: 230000, f: 0.19, water: true, maint: 0.5, oilFree: true, note: "JCI. Water-cooled with oil-free magnetic bearings: very efficient, but needs cooling towers that evaporate water.",
+        stats: ["PUE factor 0.19", "Needs tower water", "Oil-free: little maintenance"] },
+      { name: "Air-cooled chiller, other vendor", jci: false, cost: 160000, f: 0.31, maint: 1.5, note: "For example Trane, Carrier or Daikin. Cheaper, a little less efficient in this game.",
+        stats: ["PUE factor 0.31", "Cheapest"] },
     ],
     what: "A refrigeration machine that makes chilled water (around 10–18 °C), piped to air handlers (CRAHs or fan walls) in the hall. JCI's Silent-Aire builds custom fan walls and air handlers for this.",
     why: "Water carries heat far better than air, and one plant can serve many halls. With free cooling (economizers), it can skip the compressors on cold days.",
@@ -524,16 +534,20 @@ const ITEMS = {
     nums: ["'Diverse' means separate conduit, manholes and building entrances", "Carrier-neutral sites host dozens of carriers in a meet-me room", "Uptime Tiers cover power and cooling only; TIA-942 Rated-3 is the standard that expects two carriers, entrance rooms and pathways"] },
   fire: { name: "Fire protection", cat: "Safety", level: 3, max: 1, icon: "flame", spec: "Detection + suppression", jci: "option",
     options: [
-      { name: "Tyco SAPPHIRE clean agent + Simplex alarm", jci: true, cost: 45000, note: "JCI brands. SAPPHIRE discharges FK-5-1-12 (formerly sold as 3M Novec 1230), a clean agent that puts out fires without wetting servers; Simplex runs detection and alarms." },
-      { name: "Pre-action sprinkler + VESDA", jci: false, cost: 32000, note: "Dry pipes plus aspirating smoke detection (VESDA by Xtralis, a Honeywell brand). Sprinkler valves from Viking and others. JCI's Tyco also makes pre-action sprinklers." },
+      { name: "Tyco SAPPHIRE clean agent + Simplex alarm", jci: true, cost: 45000, note: "JCI brands. SAPPHIRE discharges FK-5-1-12 (formerly sold as 3M Novec 1230), a clean agent that puts out fires without wetting servers; Simplex runs detection and alarms.", smoke: "clean",
+        stats: ["Clean agent: rack back online as soon as the fault is fixed", "No water near servers"] },
+      { name: "Pre-action sprinkler + VESDA", jci: false, cost: 32000, note: "Dry pipes plus aspirating smoke detection (VESDA by Xtralis, a Honeywell brand). Sprinkler valves from Viking and others. JCI's Tyco also makes pre-action sprinklers.", smoke: "wet",
+        stats: ["Cheaper up front", "If it discharges, the rack dries out for 30 s before it earns again"] },
     ],
     what: "Very early smoke detection that samples air through small pipes, plus a clean-agent gas or pre-action sprinkler system.",
     why: "A normal sprinkler would destroy the servers. Clean agents put out a fire without harming electronics; pre-action pipes stay dry until two separate triggers fire.",
     nums: ["Aspirating detectors sense smoke long before it's visible", "Clean agents: FK-5-1-12 fluids or inert gases such as INERGEN (an Ansul/JCI brand); older HFC agents like FM-200 are being phased down", "Insurers and most customers require it"] },
   security: { name: "Security", cat: "Safety", level: 3, max: 1, icon: "shield", spec: "Fence, access, video", jci: "option",
     options: [
-      { name: "C•CURE 9000 + Illustra cameras", jci: true, cost: 30000, note: "JCI brands: Software House C•CURE access control, Illustra cameras, exacqVision video management." },
-      { name: "Other access + video", jci: false, cost: 27000, note: "For example Genetec, LenelS2 and Axis cameras." },
+      { name: "C•CURE 9000 + Illustra cameras", jci: true, cost: 30000, note: "JCI brands: Software House C•CURE access control, Illustra cameras, exacqVision video management.",
+        stats: ["One platform for access, video and alarms", "Layers: perimeter → building → hall → cage → rack"] },
+      { name: "Other access + video", jci: false, cost: 27000, note: "For example Genetec, LenelS2 and Axis cameras.",
+        stats: ["Best-of-breed mix", "More integration work"] },
     ],
     what: "A fence, vehicle gate and guard booth outside; mantraps, badge readers, biometrics and cameras inside.",
     why: "Physical access is the last line of defense. Customers and auditors (SOC 2, ISO 27001) check it.",
@@ -643,6 +657,10 @@ const CONCEPTS = {
     what: "N is the capacity you need. N+1 adds one spare unit. 2N duplicates the entire system.",
     why: "Every component eventually fails or needs maintenance. Redundancy lets you lose or service one unit with no downtime.",
     nums: ["Need 2 CRACs? N+1 means install 3", "2N power means separate A and B feeds to every rack", "Redundancy is checked against the biggest single unit"] },
+  ab: { name: "A/B feeds and 2N", icon: "battery",
+    what: "Each rack has two power strips, A and B, fed from two separate paths. Servers carry two power supplies, one on each. 2N duplicates the whole chain (UPS, switchgear, PDUs) so either side alone carries 100% of the load.",
+    why: "That is why a failed PSU didn't drop the rack: the B feed carried it. N+1 shares spare units; 2N duplicates everything, costs about twice as much and is what Tier IV requires. This game models N+1.",
+    nums: ["Tier III: N+1 with redundant paths", "Tier IV: 2N or 2(N+1), fault tolerant", "A dual-corded server must run on one cord at full load"] },
   tiers: { name: "Uptime Tiers", icon: "trophy",
     what: "The Uptime Institute rates sites Tier I to IV by outcome: basic capacity, redundant components, concurrently maintainable, fault tolerant.",
     why: "Customers choose a site by tier. Each step up costs more to build and promises less downtime.",
@@ -709,7 +727,7 @@ const LEVELS = [
       { label: "Build a chilled water plant", hint: "chiller", prog: () => [n("chiller"), 2] },
       { label: "Cooling at N+1", hint: "chiller", done: () => coolN1() && rackCount() > 0, sub: () => `Lose your biggest unit and you'd have ${kw(Math.max(0, C().air - C().airBig))} for ${kw(C().airHeat)} of heat` },
       { label: "Generators at N+1", hint: "gen", done: () => genN1() },
-      { label: "UPS at N+1", hint: "ups", done: () => upsN1() },
+      { label: "UPS at N+1", hint: "ups", done: () => upsN1(), sub: () => `N+1 shares spare modules; a 2N design would need two complete ${kw(C().it)} systems` },
       { label: "Add a second fiber carrier", hint: "fiber2", done: () => n("fiber2") > 0 },
       { label: "Install fire protection", hint: "fire", done: () => n("fire") > 0 },
       { label: "Secure the site", hint: "security", done: () => n("security") > 0 },
@@ -777,6 +795,8 @@ const S = {
   level: 0, budget: LEVELS[0].grant, clock: 9 * 60, t: 0, built: {}, picks: {}, choice: {}, passed: {}, learned: [], tasks: {},
   site: null, building: null, selected: null, tab: "mission", cat: "All", drill: null, incidents: [], incSeq: 1, nextIncident: 30,
   uptime: 100, rev: 0, bill: 0, rate: 0, completed: false, levelShown: -1,
+  credits: 0, stats: { fixed: 0, breached: 0 }, // SLA credits paid to customers, incidents fixed / overdue (saved)
+  speed: 1, // fast-forward factor for the economy, clock and processes (not saved)
 };
 const n = k => S.built[k] || 0;
 const site = () => SITES[S.site] || SITES.ashburn;
@@ -1483,21 +1503,30 @@ function runDrill(key) {
   const d = DRILLS[key];
   if (d.needs && !procDone(d.needs)) { toast(`Finish ${lc(PROCS[d.needs].name)} before testing.`, "warn"); return; }
   S.drill = { key, t: 0, dur: 4.2, result: d.test(C()) };
+  S.speed = 1;
   if (key !== "blip") learn("n1");
   toast(`Drill: ${d.desc}`, "warn");
   renderAll();
 }
 function finishDrill() {
   const { key, result } = S.drill; S.drill = null;
+  let credit = 0;
   if (result.ok) S.passed[key] = true;
-  else { (S.failed = S.failed || {})[key] = true; S.uptime = Math.max(95, S.uptime - 0.05); }
+  else {
+    (S.failed = S.failed || {})[key] = true; S.uptime = Math.max(95, S.uptime - 0.05);
+    // customers were down: pay SLA credits worth about 30 s of revenue, capped at 15% of the bank so a test never bankrupts you
+    const revPerS = C().it * 16 * site().rev;
+    credit = Math.round(Math.min(revPerS * 30, Math.max(0, S.budget) * 0.15));
+    if (credit > 0) { S.budget -= credit; S.credits += credit; }
+  }
   const d = DRILLS[key], fix = !result.ok && result.fix && ITEMS[result.fix] ? result.fix : null;
   // never replace a flow-critical dialog (level complete, quiz, site choice) with a drill result
-  if ($("#modalRoot .modal")) { toast(result.text, result.ok ? "good" : "bad"); renderAll(); return; }
+  if ($("#modalRoot .modal")) { toast(result.text + (credit > 0 ? ` SLA credits −${money(credit)}.` : ""), result.ok ? "good" : "bad"); renderAll(); return; }
   showModal(`
     <div class="eyebrow">Drill · ${d.name}</div>
     <h2>${result.ok ? "Passed" : "Failed. Now you know what to fix."}</h2>
     <div class="result ${result.ok ? "pass" : "fail"}"><div class="ico-tile">${result.ok ? ICON.checkL : ICON.alert}</div><div><b>${esc(d.desc)}</b><p>${esc(result.text)}</p></div></div>
+    ${credit > 0 ? `<p class="lead">Customers were down for about 3 minutes. SLA credits paid: <b>${money(credit)}</b>.</p>` : ""}
     ${fix ? `<p class="lead">Fix: add ${/^[AEIOU]/i.test(ITEMS[fix].name) ? "an" : "a"} <b>${ITEMS[fix].name}</b>, then run the drill again.</p>` : ""}
     <div class="foot">${fix ? `<button class="btn ghost lg" data-act="showItem" data-k="${fix}">Show ${ITEMS[fix].name}</button>` : ""}<button class="btn primary lg" data-act="closeModal">Continue</button></div>`);
   renderAll();
@@ -1554,6 +1583,7 @@ const QUIZ = [
     { q: "What does Tier III mean?", a: ["Fault tolerant: 2N everything", "Concurrently maintainable: any part can be serviced without downtime", "Basic capacity with no redundancy"], c: 1, why: "Tier III needs N+1 and redundant paths so maintenance never takes the load down. Tier IV adds full fault tolerance." },
     { q: "Which Johnson Controls brand makes chillers?", a: ["Simplex", "YORK", "Software House"], c: 1, why: "YORK is JCI's HVAC and chiller brand (for example YVAA and YZ). Simplex is fire alarm; Software House makes C•CURE access control." },
     { q: "What happens in an L5 integrated systems test?", a: ["Equipment is inspected on delivery", "Load banks run full load while the team cuts utility power and fails parts on purpose", "The slab is load-tested"], c: 1, why: "The IST proves all systems work together through real failures before customers move in." },
+    { q: "A server's A-side power supply fails. Why does it keep running?", a: ["Its B-side supply is fed from a separate path", "The UPS restarts it instantly", "Servers store 10 minutes of power internally"], c: 0, why: "Dual-corded servers draw from the A and B power strips at once; either one can carry the full load, which is the idea behind 2N." },
   ] },
   { bonus: 100000, qs: [
     { q: "Why do GPU racks need liquid cooling?", a: ["Air can't remove 40+ kW from one rack", "Liquid cooling is cheaper than air", "GPUs need humid air"], c: 0, why: "Air runs out of capacity around 30–40 kW per rack. Water carries thousands of times more heat per volume." },
@@ -1660,21 +1690,28 @@ const INC = {
   hot: { label: "Hot spot", sev: "warn", detail: () => `Inlet ${Math.round(rand(29, 33))}°C, above the 27 °C guideline` },
   psu: { label: "PSU failure", sev: "bad", detail: () => "Server running on its B feed only" },
   link: { label: "Link flapping", sev: "warn", detail: () => "Top-of-rack switch uplink" },
+  smoke: { label: "Smoke detected", sev: "bad", detail: () => "Aspirating detector alarm at this rack" },
 };
-const SLA = () => n("bms") ? 70 : 45;
+/* the BMS pick sets how long technicians have before an alert is overdue, and how early weather events are forecast */
+const bmsOpt = () => n("bms") ? ITEMS.bms.options[S.picks.bms?.[0] ?? 0] : null;
+const SLA = () => bmsOpt()?.sla ?? 45;
+const forecastLead = () => bmsOpt()?.forecast ?? 12; // read by the operating-events scheduler
 function spawnIncident() {
   if (S.incidents.length >= 2) return;
   const cand = racks.filter(r => r.built && !r.incident);
   if (!cand.length) return;
   const c = C(), hotBias = c.air ? c.airHeat / c.air > 0.85 : false;
-  const key = hotBias && Math.random() < 0.7 ? "hot" : pick(["hot", "psu", "link"]);
+  const key = hotBias && Math.random() < 0.7 ? "hot" : pick(n("fire") ? ["hot", "psu", "link", "smoke"] : ["hot", "psu", "link"]);
   const rack = pick(cand), type = INC[key];
   const inc = { id: "INC-" + String(S.incSeq++).padStart(3, "0"), key, type, rack, sev: type.sev, detail: type.detail(), t0: S.t, state: "open", crew: null, breached: false };
   inc.pin = makePin(SEV[inc.sev]); inc.pin.position.set(rack.x, 2.4, rack.z);
   inc.pin.userData.hit.forEach(h => h.userData.incident = inc);
   rack.incident = inc; S.incidents.push(inc);
+  S.speed = 1;
   const bmsName = n("bms") ? (S.picks.bms?.[0] === 0 ? "Metasys" : "The BMS") : null;
-  toast(`${bmsName ? bmsName + " flagged " : ""}${rack.id}: ${type.label.toLowerCase()}. Click the pin to send a technician.`, inc.sev);
+  // the first PSU failure is the moment to explain A/B feeds: the rack kept running on its second cord
+  if (key === "psu" && !S.learned.includes("ab")) { learn("ab"); toast(`${rack.id}: PSU failed; the rack is running on its B feed. New in Handbook: A/B feeds and 2N.`, inc.sev); }
+  else toast(`${bmsName ? bmsName + " flagged " : ""}${rack.id}: ${type.label.toLowerCase()}. Click the pin to send a technician.`, inc.sev);
 }
 function dispatch(inc) {
   if (!inc || inc.state !== "open") return;
@@ -1691,7 +1728,13 @@ function assign(c, inc) {
 function resolve(inc) {
   inc.rack.incident = null; scene.remove(inc.pin); inc.pin.userData.mat.dispose(); shadowsDirty = true;
   S.incidents = S.incidents.filter(i => i !== inc);
-  toast(`${inc.rack.id} fixed.`, "good");
+  S.stats.fixed++;
+  if (inc.key === "smoke") {
+    // what the suppression system did decides when the rack earns again
+    const wet = ITEMS.fire.options[S.picks.fire?.[0] ?? 0].smoke === "wet";
+    if (wet) { inc.rack.dryUntil = S.t + 30; toast(`${inc.rack.id}: pre-action sprinklers discharged. 30 s dry-out before it earns again.`, "warn"); }
+    else toast(`${inc.rack.id}: clean agent discharged, servers dry and back online.`, "good");
+  } else toast(`${inc.rack.id} fixed.`, "good");
 }
 
 /* =====================================================================
@@ -1699,20 +1742,33 @@ function resolve(inc) {
    ===================================================================== */
 let ledClock = 0, ledTick = 0;
 function simulate(dt) {
-  S.t += dt; S.clock += dt;
+  // fast-forward dilates the economy, clock and processes together; incidents, crews, the truck and drills stay on real time
+  const sdt = S.drill || S.event ? dt : dt * S.speed;
+  S.t += dt; S.clock += sdt;
   const c = C();
-  // economics: customers pay per kW of IT; the utility bills facility power (IT × PUE)
+  // economics: customers pay per kW of IT; the utility bills facility power (IT × PUE).
+  // Overdue racks (until a technician starts work) and racks drying out after a sprinkler discharge earn nothing.
   const down = S.drill && !S.drill.result.ok && S.drill.t > 0.8;
-  S.rev = down ? 0 : c.it * 16 * site().rev;
+  const downKW = racks.reduce((a, r) => a + (r.built && ((r.incident?.breached && r.incident.state !== "repairing") || r.dryUntil > S.t) ? r.kw : 0), 0);
+  S.rev = down ? 0 : Math.max(0, c.it - downKW) * 16 * site().rev;
   S.bill = c.facility * c.price * 60;
   S.rate = S.rev - S.bill;
-  S.budget += S.rate * dt;
-  tickTasks(dt);
+  S.budget += S.rate * sdt;
+  tickTasks(sdt);
   if (S.level >= 2 && S.t > S.nextIncident && !S.drill) { spawnIncident(); S.nextIncident = S.t + rand(22, 34); }
-  for (const inc of S.incidents) if (!inc.breached && inc.state !== "repairing" && S.t - inc.t0 > SLA()) {
-    inc.breached = true; inc.sev = "bad"; inc.pin.userData.mat.color.setHex(SEV.bad); S.uptime = Math.max(95, S.uptime - 0.01);
-    toast(`${inc.rack.id} waited too long. Uptime took a hit.`, "bad");
+  for (const inc of S.incidents) {
+    // SLA credit: about 20 s of that rack's revenue when it goes overdue, and again every 30 s until a technician is working on it
+    const credit = Math.round(inc.rack.kw * 16 * site().rev * 20);
+    if (!inc.breached && inc.state !== "repairing" && S.t - inc.t0 > SLA()) {
+      inc.breached = true; inc.sev = "bad"; inc.pin.userData.mat.color.setHex(SEV.bad); S.uptime = Math.max(95, S.uptime - 0.01);
+      S.budget -= credit; S.credits += credit; S.stats.breached++; inc.nextCredit = S.t + 30;
+      toast(`${inc.rack.id} waited too long. SLA credit −${money(credit)} paid to the customer.`, "bad");
+    } else if (inc.breached && inc.state !== "repairing" && S.t >= inc.nextCredit) {
+      S.budget -= credit; S.credits += credit; inc.nextCredit = S.t + 30;
+      toast(`${inc.rack.id} still down: another ${money(credit)} in SLA credits.`, "bad");
+    }
   }
+  if (!S.incidents.length && !S.drill && S.uptime < 100) S.uptime = Math.min(100, S.uptime + 0.001 * dt);
   for (const cr of crews) {
     if (cr.state === "route" && walk(cr, dt)) { cr.state = "repair"; cr.workT = 0; cr.job.state = "repairing"; cr.g.rotation.y = cr.job.rack.row.f > 0 ? Math.PI : 0; }
     else if (cr.state === "repair") {
@@ -1793,7 +1849,9 @@ function hoverTick() {
   const h = hit(e);
   canvas.classList.toggle("pointing", !!(h && (h.rack || ITEMS[h.info?.key] || h.info?.key === "lot")));
   if (!h) { tip.hidden = true; tipKey = null; return; }
-  const key = h.incident ? h.incident.id + "|" + h.incident.state + "|" + (h.incident.crew?.id || "") : h.rack ? "r|" + h.rack.id : "i|" + h.info.key + "|" + (S.picks[h.info.key] || []).join(",");
+  const ri = h.rack?.incident;
+  const key = h.incident ? h.incident.id + "|" + h.incident.state + "|" + (h.incident.crew?.id || "") + "|" + (h.rack.dryUntil > S.t)
+    : h.rack ? "r|" + h.rack.id + "|" + (ri ? ri.id + ri.state + (ri.crew?.id || "") : "") + "|" + (h.rack.dryUntil > S.t) :"i|" + h.info.key + "|" + (S.picks[h.info.key] || []).join(",");
   if (key !== tipKey) { tipKey = key; tip.innerHTML = tipHTML(h); }
   const b = wrap.getBoundingClientRect();
   let x = e.clientX - b.left + 14, y = e.clientY - b.top + 14;
@@ -1807,6 +1865,8 @@ function tipHTML(h) {
     const r = h.rack, inc = r.incident;
     html = `<b>${r.gpu ? "GPU rack" : "Server rack"} <span class="mono">${r.id}</span></b>
       <div class="row"><span>Draw</span><span>${r.kw} kW</span></div><div class="row"><span>Inlet air</span><span>${inc?.key === "hot" ? "31" : r.inlet.toFixed(1)}°C</span></div>
+      ${inc?.key === "psu" ? `<div class="row"><span>Feeds</span><span>A down · B carrying 100%</span></div>` : ""}
+      ${r.dryUntil > S.t ? `<div class="row"><span>Status</span><span>Drying out</span></div>` : ""}
       ${inc ? `<div class="row"><span>Alert</span><span>${inc.type.label}</span></div><div class="hint">${inc.state === "open" ? "Click to send a technician" : inc.crew.name.split(" ")[0] + " is on it"}</div>` : `<div class="hint">Click to read about racks</div>`}`;
   } else {
     const k = h.info.key, it = ITEMS[k], x = it || EXTRA_INFO[k]();
@@ -1885,7 +1945,8 @@ document.addEventListener("click", e => {
       S.confirmReset = true; el.textContent = "Click again to erase";
       setTimeout(() => { S.confirmReset = false; if (el.isConnected) el.textContent = "Start over"; renderAll(); }, 4000);
     }
-    else if (a === "hintGo") { const h = nextHint(); if (h?.kind === "item") selectItem(h.key); else if (h?.kind === "proc") selectProc(h.key); else if (h?.kind === "drill") runDrill(h.key); }
+    else if (a === "speed") S.speed = S.speed > 1 ? 1 : 3;
+    else if (a === "hintGo") { const h = nextHint(); if (h?.kind === "item") selectItem(h.key); else if (h?.kind === "proc") selectProc(h.key); else if (h?.kind === "drill") runDrill(h.key); else if (h?.kind === "speed") S.speed = S.speed > 1 ? 1 : 3; }
     renderAll();
     if (a === "cat") layoutLesson();
   } catch (err) {
@@ -1900,6 +1961,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") { if ($("#mo
 let modalPrevSel = null;
 function showModal(html, wide, kind = "") {
   const root = $("#modalRoot");
+  S.speed = 1;
   if (!root.firstChild) modalPrevSel = selFor(document.activeElement);
   root.innerHTML = `<div class="scrim"><div class="modal ${wide ? "wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1" ${kind ? `data-kind="${kind}"` : ""}>${html}</div></div>`;
   const h2 = root.querySelector("h2"); if (h2) h2.id = "modalTitle";
@@ -1966,6 +2028,7 @@ function actionFor(kind, k, depth = 0) {
   if (b.need && b.need !== k) { const a = actionFor("item", b.need, depth + 1); return a && !a.wait && !a.why ? { ...a, why: `${ITEMS[k].name}: ${lc(b.why)}.` } : a; }
   return { kind: "item", key: k, why: b.why + "." };
 }
+const speedLabel = () => S.speed > 1 ? "Back to 1×" : "Fast-forward 3×";
 function nextHint() {
   const L = LEVELS[S.level];
   let waiting = null;
@@ -1991,9 +2054,12 @@ function nextHint() {
     if (a.kind === "drill") return { ...a, text: a.ok ? `Everything's in place. Run the <b>${DRILLS[a.key].name.toLowerCase()}</b> drill to prove your design works.` : `Build goals are done. Run the <b>${DRILLS[a.key].name.toLowerCase()}</b> drill to test the design before customers do.`, label: "Run drill" };
     if (a.kind === "proc") return { ...a, text: `${why}Next: <b>${PROCS[a.key].name}</b>, toward “${esc(o.label)}”.`, label: PROCS[a.key].modal ? "Open" : "Read and start" };
     const nm = ITEMS[a.key].name, art = /^[AEIOU]/i.test(nm) ? "an" : "a";
-    return { ...a, text: `${why}Build ${art} <b>${nm}</b> to work toward “${esc(o.label)}”.`, label: `Show ${nm}` };
+    const text = `${why}Build ${art} <b>${nm}</b> to work toward “${esc(o.label)}”.`;
+    // saving up is dead time: offer fast-forward, keeping the key so the build card still pulses
+    if (blocker(a.key)?.money) return { ...a, text, kind: "speed", label: speedLabel() };
+    return { ...a, text, label: `Show ${nm}` };
   }
-  if (waiting) return { text: `Waiting for <b>${PROCS[waiting].name}</b> to finish. Real projects run several of these in parallel.` };
+  if (waiting) return { text: `Waiting for <b>${PROCS[waiting].name}</b> to finish. Real projects run several of these in parallel.`, kind: "speed", label: speedLabel() };
   return null;
 }
 
@@ -2023,18 +2089,27 @@ function renderAll() {
     kpi("snow", "Cooling", c.air ? Math.round(coolPct) + "%" : "–", c.air ? "used" : "", c.air ? `${kw(c.airHeat)} heat · ${kw(c.air)} air${c.liquid ? ` · ${kw(c.liquid)} liquid` : ""}` : "no cooling yet", coolPct > 95 ? "bad" : coolPct > 80 ? "warn" : ""),
     kpi("battery", "Backup power", backup, "", `${c.ups ? "UPS " + kw(c.ups) : "no UPS"} · ${n("gen") ? n("gen") + " gen" : "no generator"}`, !c.ups && c.it ? "warn" : ""),
     kpi("gauge", "PUE", c.pue ? c.pue.toFixed(2) : "–", "", c.pue ? (c.pue >= 1.8 ? "closet-grade" : c.pue >= 1.45 ? "enterprise-grade" : c.pue > 1.25 ? "efficient" : "hyperscale-grade") : "facility ÷ IT power", ""),
-    kpi("wallet", "Profit", c.it ? (S.rate < 0 ? "−" : "") + money(Math.abs(S.rate * 60)) : "–", c.it ? "/h" : "", c.it ? `revenue ${money(S.rev * 60)} − power ${money(S.bill * 60)}` : `power ${S.site ? "$" + c.price.toFixed(3) + "/kWh" : "price set by location"}`, S.rate < 0 ? "bad" : ""),
+    kpi("wallet", "Profit", c.it ? (S.rate < 0 ? "−" : "") + money(Math.abs(S.rate * 60)) : "–", c.it ? "/h" : "", c.it ? `revenue ${money(S.rev * 60)} − power ${money(S.bill * 60)}${S.credits ? ` · SLA credits ${money(S.credits)}` : ""}` : `power ${S.site ? "$" + c.price.toFixed(3) + "/kWh" : "price set by location"}`, S.rate < 0 ? "bad" : ""),
   ].join(""));
 
   setHTML($("#buildHead"), `<b>Build</b>` + CATS.map(k => `<button class="cat ${k === "JCI" ? "jcicat" : ""}" data-act="cat" data-cat="${k}" aria-pressed="${S.cat === k}">${k}</button>`).join(""));
   const hint = S.completed ? null : nextHint();
+  // fast-forward switches itself off as soon as nothing is left to wait for
+  if (S.speed > 1) {
+    const running = Object.values(S.tasks).some(t => !t.done);
+    const saving = hint?.kind === "speed" || (hint?.kind === "item" && blocker(hint.key)?.money) || (hint?.kind === "proc" && procBlocker(hint.key)?.money);
+    if (!running && !saving) S.speed = 1;
+  }
+  const fb = $("#ffBtn"), fl = S.speed + "×";
+  if (fb.textContent !== fl) fb.textContent = fl;
+  fb.classList.toggle("on", S.speed > 1); fb.setAttribute("aria-pressed", String(S.speed > 1));
   setHTML($("#cards"), ORDER.filter(k => catMatch(k, S.cat)).map(k => {
     const it = ITEMS[k], b = blocker(k), lockLvl = it.level > S.level;
     const count = k === "rack" ? `${rackCount()}/${LEVELS[S.level].rackCap}` : it.max > 1 ? `${n(k)}/${it.max}` : "";
     const st = lockLvl ? `<span class="st lock">Level ${it.level}</span>` : !b ? `<span class="st ok">Ready</span>`
       : b.built ? `<span class="st lock">Built</span>` : b.lock ? `<span class="st lock">Full</span>` : b.money ? `<span class="st no">Saving up</span>`
       : `<span class="st no" title="${esc(b.why)}">Needs ${b.needProc ? PROCS[b.needProc].short : b.need ? ITEMS[b.need].name.toLowerCase() : "more"}</span>`;
-    return `<button class="bcard ${lockLvl ? "locked" : ""} ${hint?.kind === "item" && hint.key === k ? "hint" : ""}" data-act="item" data-k="${k}" aria-pressed="${S.selected === k}">
+    return `<button class="bcard ${lockLvl ? "locked" : ""} ${(hint?.kind === "item" || hint?.kind === "speed") && hint.key === k ? "hint" : ""}" data-act="item" data-k="${k}" aria-pressed="${S.selected === k}">
       <span class="top"><span class="part-ico">${ICON[it.icon]}</span><span class="cost">${it.options ? "from " : ""}${money(it.options ? Math.min(...it.options.map((_, i) => costOf(k, i))) : costOf(k))}</span></span>
       <b>${it.name}</b><small>${it.spec}${count ? " · " + count : ""}</small><span class="row2">${brandTag(k)}</span>${st}</button>`;
   }).join(""));
@@ -2063,7 +2138,7 @@ function renderLesson() {
     const needBtn = b?.needProc ? `<button class="btn ghost" data-act="proc" data-k="${b.needProc}">${PROCS[b.needProc].name}</button>`
       : b && b.need && b.need !== k && ITEMS[b.need] ? `<button class="btn ghost" data-act="item" data-k="${b.need}">Show ${ITEMS[b.need].name}</button>` : "";
     const opts = it.options ? `<div class="lesson-body"><h4>Choose a product</h4></div><div class="opts">${it.options.map((o, i) => `
-      <button class="opt" data-act="opt" data-k="${k}" data-i="${i}" aria-pressed="${ci === i}"><span class="opt-top"><span class="vtag ${o.jci ? "jci" : ""}">${o.jci ? "JCI" : "Non-JCI"}</span><span class="cost">${money(costOf(k, i))}</span></span><b>${o.name}</b><small>${esc(o.note)}${o.water && site().waterStress ? " Water is scarce here: +15% cost." : ""}</small></button>`).join("")}</div>` : "";
+      <button class="opt" data-act="opt" data-k="${k}" data-i="${i}" aria-pressed="${ci === i}"><span class="opt-top"><span class="vtag ${o.jci ? "jci" : ""}">${o.jci ? "JCI" : "Non-JCI"}</span><span class="cost">${money(costOf(k, i))}</span></span><b>${o.name}</b><small>${esc(o.note)}${o.water && site().waterStress ? " Water is scarce here: +15% cost." : ""}</small><span class="specs">${(o.stats || []).map(s => chip("idle", esc(s))).join("")}</span></button>`).join("")}</div>` : "";
     setHTML(lesson, `<div class="lesson-top"><span class="part-ico">${ICON[it.icon]}</span><div><div class="eyebrow">${it.cat} · Level ${it.level} · ${brandTag(k)}</div><h3>${it.name}</h3></div><button class="x" data-act="closeLesson" aria-label="Close lesson">${ICON.x}</button></div>
       <div class="specs">${chip("info", it.spec)}${it.max > 1 ? chip("idle", `${n(k)} of ${it.max} built`) : ""}</div>
       ${lessonBody(it)}${opts}
@@ -2097,7 +2172,7 @@ function renderSide(c, L, hint, open) {
     const drills = S.completed ? Object.keys(DRILLS) : objs.filter(o => o.drill).map(o => o.drill);
     if (drills.length) side += `<div><div class="sec-title">Failure drills <span>test your design</span></div>${drills.map(k => {
       const d = DRILLS[k], gated = d.needs && !procDone(d.needs);
-      return `<div class="drill"><span class="part-ico">${ICON[d.icon]}</span><span class="grow"><b>${d.name}</b><small>${gated ? `Needs ${lc(PROCS[d.needs].name)}` : d.desc}</small></span>${S.passed[k] ? chip("good", "Passed") : ""}<button class="btn ${S.passed[k] ? "ghost" : "primary"} sm" data-act="drill" data-k="${k}" ${S.drill || gated ? "disabled" : ""}>${ICON.play} ${S.passed[k] ? "Rerun" : "Run"}</button></div>`;
+      return `<div class="drill"><span class="part-ico">${ICON[d.icon]}</span><span class="grow"><b>${d.name}</b><small>${gated ? `Needs ${lc(PROCS[d.needs].name)}` : S.passed[k] ? d.desc : `${d.desc} A failure costs SLA credits.`}</small></span>${S.passed[k] ? chip("good", "Passed") : ""}<button class="btn ${S.passed[k] ? "ghost" : "primary"} sm" data-act="drill" data-k="${k}" ${S.drill || gated ? "disabled" : ""}>${ICON.play} ${S.passed[k] ? "Rerun" : "Run"}</button></div>`;
     }).join("")}</div>`;
   } else if (S.tab === "handbook") {
     // the handbook is a large string: rebuild it only when something it shows has changed
@@ -2108,7 +2183,7 @@ function renderSide(c, L, hint, open) {
       side += `<div>${S.learned.slice().reverse().map(k => {
         const x = ITEMS[k] || CONCEPTS[k] || PROCS[k] || (k === "cx" ? CX : null); if (!x) return "";
         const kind = ITEMS[k] ? `${ITEMS[k].cat}` : PROCS[k] ? "Process" : "Key idea";
-        const extra = ITEMS[k]?.options ? `<div class="lesson-body" style="padding-top:0"><h4>Products</h4><ul>${ITEMS[k].options.map(o => `<li><b>${o.name}</b> (${o.jci ? "JCI" : "non-JCI"}): ${esc(o.note)}</li>`).join("")}</ul></div>` : "";
+        const extra = ITEMS[k]?.options ? `<div class="lesson-body" style="padding-top:0"><h4>Products</h4><ul>${ITEMS[k].options.map(o => `<li><b>${o.name}</b> (${o.jci ? "JCI" : "non-JCI"}): ${esc(o.note)} ${esc((o.stats || []).join(" · "))}</li>`).join("")}</ul></div>` : "";
         return `<details class="hb" data-k="${k}" ${HB_OPEN.has(k) ? "open" : ""}><summary><span class="part-ico">${ICON[x.icon]}</span><span>${x.name}</span>${ITEMS[k] ? brandTag(k) : ""}<small>${kind}</small></summary>${lessonBody(x)}${extra}</details>`;
       }).join("")}</div>`;
       side += `<p class="note">Figures are illustrative and simplified for play. Product names are used for education; this game is not affiliated with Johnson Controls or any other vendor.</p>`;
@@ -2174,7 +2249,7 @@ function frame() {
 /* ---------- save and resume (this browser only) ---------- */
 const SAVE_KEY = "dcb-save-v1";
 let resetting = false; // set by "Start over": stops the 5 s autosave from re-saving before the reload lands
-const SAVE_FIELDS = ["level", "budget", "clock", "built", "picks", "choice", "passed", "failed", "learned", "tasks", "site", "building", "uptime", "completed", "quiz"];
+const SAVE_FIELDS = ["level", "budget", "clock", "built", "picks", "choice", "passed", "failed", "learned", "tasks", "site", "building", "uptime", "completed", "quiz", "credits", "stats"];
 function save() {
   if (resetting) return;
   try {
@@ -2195,8 +2270,10 @@ function restore(d) {
   if (!Number.isFinite(S.budget)) S.budget = LEVELS[S.level].grant;
   if (!SITES[S.site]) S.site = null;
   if (S.building && !BUILDINGS[S.building]) S.building = null;
-  S.spent ??= 0; S.credits ??= 0; S.eventLoss ??= 0;
-  S.stats ??= { fixed: 0, breached: 0 };
+  S.spent ??= 0; S.eventLoss ??= 0;
+  if (!Number.isFinite(S.credits)) S.credits = 0;
+  if (!S.stats || typeof S.stats !== "object") S.stats = { fixed: 0, breached: 0 };
+  S.stats = { fixed: +S.stats.fixed || 0, breached: +S.stats.breached || 0 };
   S.eventsSeen ??= { survived: 0, lost: 0 };
   for (const k in S.built) if (SLOTS[k]) for (let i = 0; i < S.built[k] && i < SLOTS[k].length; i++) SLOTS[k][i].visible = true;
   (d.racks || []).forEach(id => { const r = rackById(id); if (r) { r.built = true; r.mesh.visible = true; showRackLeds(r); } });
