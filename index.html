@@ -269,6 +269,13 @@ svg { display: block; flex: none; }
 .choice .pro { color: var(--good); font-weight: 600; }
 .choice .con { color: var(--bad); font-weight: 600; }
 .choice .btn { margin-top: auto; }
+.choice dl.proj { padding-top: 7px; border-top: 1px dashed var(--line); }
+.choice dl.proj .chip { padding: 1px 6px; font-size: 10px; }
+.preview .eyebrow { margin-right: 2px; }
+.cmp { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cmp th { text-align: left; color: var(--muted); font-weight: 700; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; }
+.cmp td, .cmp th { padding: 5px 4px; border-bottom: 1px solid var(--line); }
+.cmp tr.now td { font-weight: 800; color: var(--accent-ink); }
 
 /* ---------- quiz ---------- */
 .quiz { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -434,17 +441,17 @@ if (typeof THREE === "undefined" || !THREE.OrbitControls) { bootFail("Couldn't l
    CURRICULUM: sites, buildings, equipment, processes, levels, drills
    ===================================================================== */
 const SITES = {
-  ashburn: { name: "Ashburn, Virginia", tag: "Data Center Alley", price: 0.09, cool: 1.0, rev: 1.15, land: 1.3, equip: 0.95, waterStress: false,
-    facts: [["Power price", "$0.09/kWh"], ["Grid", "Constrained: multi-year waits for big loads"], ["Fiber", "Densest in the world, next to every cloud"], ["Climate", "Humid, four seasons"], ["Water", "Available"], ["Land", "Expensive"], ["Incentive", "Sales-tax exemption on DC equipment"]],
+  ashburn: { name: "Ashburn, Virginia", tag: "Data Center Alley", price: 0.09, cool: 1.0, rev: 1.15, land: 1.3, equip: 0.95, waterStress: false, freeHours: 4500, wue: 1.8,
+    facts: [["Power price", "$0.09/kWh"], ["Grid", "Constrained: multi-year waits for big loads"], ["Fiber", "Densest in the world, next to every cloud"], ["Climate", "Humid, four seasons"], ["Water", "Available"], ["Land", "Expensive"], ["Latency", "~2 ms to Washington and NYC"], ["Incentive", "Sales-tax exemption on DC equipment"]],
     plus: "Customers pay a premium to be here (+15% revenue).", minus: "Land costs 30% more, and big grid upgrades are slow and pricey." },
-  phoenix: { name: "Phoenix, Arizona", tag: "Desert growth market", price: 0.08, cool: 1.25, rev: 1.05, land: 0.75, equip: 0.95, waterStress: true,
-    facts: [["Power price", "$0.08/kWh"], ["Grid", "Good, but stressed at summer peaks"], ["Fiber", "Good west-coast routes"], ["Climate", "Very hot, dry summers"], ["Water", "Scarce"], ["Land", "Cheap"], ["Incentive", "Sales-tax exemption on DC equipment"]],
+  phoenix: { name: "Phoenix, Arizona", tag: "Desert growth market", price: 0.08, cool: 1.25, rev: 1.05, land: 0.75, equip: 0.95, waterStress: true, freeHours: 3000, wue: 2.5,
+    facts: [["Power price", "$0.08/kWh"], ["Grid", "Good, but stressed at summer peaks"], ["Fiber", "Good west-coast routes"], ["Climate", "Very hot, dry summers"], ["Water", "Scarce"], ["Land", "Cheap"], ["Latency", "~12 ms to Los Angeles"], ["Incentive", "Sales-tax exemption on DC equipment"]],
     plus: "Cheap land, low disaster risk and strong West Coast demand (+5% revenue).", minus: "Heat makes cooling work 25% harder; water-cooled plants are a poor fit." },
-  columbus: { name: "Columbus, Ohio", tag: "Midwest hub", price: 0.07, cool: 0.9, rev: 1.0, land: 0.8, equip: 0.95, waterStress: false,
-    facts: [["Power price", "$0.07/kWh"], ["Grid", "Capacity available, upgrades planned"], ["Fiber", "Good, between the East Coast and Chicago"], ["Climate", "Cold winters allow free cooling"], ["Water", "Plentiful"], ["Land", "Cheap"], ["Incentive", "Sales-tax exemption on DC equipment"]],
+  columbus: { name: "Columbus, Ohio", tag: "Midwest hub", price: 0.07, cool: 0.9, rev: 1.0, land: 0.8, equip: 0.95, waterStress: false, freeHours: 5500, wue: 1.5,
+    facts: [["Power price", "$0.07/kWh"], ["Grid", "Capacity available, upgrades planned"], ["Fiber", "Good, between the East Coast and Chicago"], ["Climate", "Cold winters allow free cooling"], ["Water", "Plentiful"], ["Land", "Cheap"], ["Latency", "~8 ms to Chicago"], ["Incentive", "Sales-tax exemption on DC equipment"]],
     plus: "Balanced: cheaper power and land, cool winters.", minus: "Some storm and tornado risk." },
-  lulea: { name: "Luleå, Sweden", tag: "Nordic free cooling", price: 0.04, cool: 0.55, rev: 0.8, land: 0.65, equip: 1.0, waterStress: false,
-    facts: [["Power price", "$0.04/kWh, hydro"], ["Grid", "Strong and renewable"], ["Fiber", "Far from most users: higher latency"], ["Climate", "Subarctic: cold air most of the year"], ["Water", "Plentiful"], ["Land", "Very cheap"], ["Incentive", "Low-cost renewable power"]],
+  lulea: { name: "Luleå, Sweden", tag: "Nordic free cooling", price: 0.04, cool: 0.55, rev: 0.8, land: 0.65, equip: 1.0, waterStress: false, freeHours: 8000, wue: 0.3,
+    facts: [["Power price", "$0.04/kWh, hydro"], ["Grid", "Strong and renewable"], ["Fiber", "Far from most users: higher latency"], ["Climate", "Subarctic: cold air most of the year"], ["Water", "Plentiful"], ["Land", "Very cheap"], ["Latency", "~25 ms to Frankfurt, ~90 ms to US East"], ["Incentive", "Low-cost renewable power"]],
     plus: "Cheapest, greenest power and outside air cools almost for free.", minus: "Far from users: customers pay 20% less." },
 };
 const BUILDINGS = {
@@ -648,6 +655,10 @@ const PROCS = {
 };
 
 const CONCEPTS = {
+  freecool: { name: "Free cooling", icon: "snow",
+    what: "When outside air or water is colder than the chilled-water setpoint, economizers let the plant reject heat without running compressors.",
+    why: "That is why cold-climate sites reach PUE 1.1–1.2: for most hours of the year the chillers barely run.",
+    nums: ["Air-side economizers bring filtered outside air in; water-side ones use cooling towers or dry coolers", "Luleå: ~8,000 free-cooling hours a year; Phoenix: ~3,000", "ASHRAE's wider allowable inlet range made free cooling possible in more climates"] },
   siteSel: { name: "Site selection", icon: "map",
     what: "Choosing where to build. The checklist: power (price, capacity, timeline), fiber, climate, water, land, taxes, hazards, labor and distance to customers.",
     why: "Most of a data center's lifetime cost is decided before construction starts, by its location.",
@@ -832,33 +843,37 @@ function costOf(k, i = S.choice[k] ?? 0) {
 let _caps = null;
 function C() { return _caps || (_caps = computeCaps()); }
 function invalidate() { _caps = null; }
-function computeCaps() {
-  const cm = n("containment") ? 1.25 : 1, bc = bld().cool;
-  const utilityCap = n("substation") ? 2500 : n("transformer") ? 300 : n("utility") ? 50 : 0;
-  const ups = n("upsSmall") * 20 + n("ups") * 500;
-  const upsBig = n("ups") ? 500 : n("upsSmall") ? 20 : 0;
-  const gen = n("gen") * 500;
+function computeCaps(o = {}) {
+  // o overrides the live state for what-if questions: { full, built, racks, site, picks, ppa }. With no argument it reads S.
+  const base = o.full ? {} : S.built;
+  const nb = k => (o.built && k in o.built) ? o.built[k] : (base[k] || 0);
+  const rackN = o.racks ?? rackCount(), st = o.site ? SITES[o.site] : site();
+  const picks = o.picks ?? (S.picks.chiller || []), ppa = o.ppa ?? procDone("ppa");
+  const cm = nb("containment") ? 1.25 : 1, bc = bld().cool;
+  const utilityCap = nb("substation") ? 2500 : nb("transformer") ? 300 : nb("utility") ? 50 : 0;
+  const ups = nb("upsSmall") * 20 + nb("ups") * 500;
+  const upsBig = nb("ups") ? 500 : nb("upsSmall") ? 20 : 0;
+  const gen = nb("gen") * 500;
   const U = { chiller: 300 * bc, crac: 40 * cm * bc, split: 12 * cm * bc };
-  const air = n("chiller") * U.chiller + n("crac") * U.crac + n("split") * U.split;
-  const airBig = n("chiller") ? U.chiller : n("crac") ? U.crac : n("split") ? U.split : 0;
-  const liquid = n("cdu") * 500;
-  const rackIT = rackCount() * 6, gpuHeat = n("gpu") * 40, hallIT = n("hallA") * 600;
+  const air = nb("chiller") * U.chiller + nb("crac") * U.crac + nb("split") * U.split;
+  const airBig = nb("chiller") ? U.chiller : nb("crac") ? U.crac : nb("split") ? U.split : 0;
+  const liquid = nb("cdu") * 500;
+  const rackIT = rackN * 6, gpuHeat = nb("gpu") * 40, hallIT = nb("hallA") * 600;
   const it = rackIT + gpuHeat + hallIT;
   const airHeat = rackIT + hallIT;
-  const picks = S.picks.chiller || [];
   const chF = picks.length ? picks.reduce((a, i) => a + ITEMS.chiller.options[i].f, 0) / picks.length : 0.27;
   // cooling overhead: heat goes to the most efficient equipment first
   let rem = airHeat, over = 0;
   const take = (cap, f) => { const h = Math.min(rem, cap); over += h * f; rem -= h; };
-  take(n("chiller") * U.chiller, chF);
-  take(n("crac") * U.crac, n("containment") ? 0.42 : 0.58);
-  take(n("split") * U.split, 0.88);
+  take(nb("chiller") * U.chiller, chF);
+  take(nb("crac") * U.crac, nb("containment") ? 0.42 : 0.58);
+  take(nb("split") * U.split, 0.88);
   over += rem * 1.2 + gpuHeat * 0.1;
-  over *= site().cool * (n("openblue") ? 0.9 : 1);
+  over *= st.cool * (nb("openblue") ? 0.9 : 1);
   const pue = it ? 1 + over / it + 0.07 : 0;
   const facility = it * (pue || 1);
-  const price = site().price * (procDone("ppa") ? 0.85 : 1);
-  return { utilityCap, ups, upsBig, gen, air, airBig, liquid, it, airHeat, gpuHeat, pue, facility, price, carriers: n("fiber") + n("fiber2") };
+  const price = st.price * (ppa ? 0.85 : 1);
+  return { utilityCap, ups, upsBig, gen, air, airBig, liquid, it, airHeat, gpuHeat, pue, facility, price, carriers: nb("fiber") + nb("fiber2") };
 }
 const coolN1 = () => { const c = C(); return c.air - c.airBig >= c.airHeat; };
 const genN1 = () => { const c = C(); return n("gen") >= 2 && c.gen - 500 >= c.facility; };
@@ -880,6 +895,30 @@ function estimateAfter(addIT) {
   const c = C(), it = c.it + addIT;
   const pue = c.pue || (n("split") ? 1.95 : 1.5);
   return { it, facility: it * Math.max(pue, 1.1) };
+}
+/* economics of a capacity snapshot, per game second: customers pay per kW of IT, the utility bills facility power */
+function econ(c, st = site()) { const rev = c.it * 16 * st.rev, bill = c.facility * c.price * 60; return { rev, bill, rate: rev - bill }; }
+/* what-if: the model with one more of k (option i), or with a finished process */
+function previewBuild(k, i = S.choice[k] ?? 0) {
+  const o = {};
+  if (k === "rack") o.racks = rackCount() + 1; else o.built = { [k]: n(k) + 1 };
+  if (k === "chiller") o.picks = [...(S.picks.chiller || []), i];
+  return { before: C(), after: computeCaps(o) };
+}
+function previewProc(k) { return k === "ppa" ? { before: C(), after: computeCaps({ ppa: true }) } : null; }
+/* site projections: the same reference build (level-3 style: 24 racks, 2 air-cooled chillers) in each market */
+const REF_BUILD = { utility: 1, transformer: 1, ups: 2, gen: 2, chiller: 2, containment: 1, bms: 1, fiber: 1, fiber2: 1 };
+function siteProjection(key) {
+  const s = SITES[key], c = computeCaps({ full: true, built: REF_BUILD, racks: 24, site: key, picks: [0, 0], ppa: false }), e = econ(c, s);
+  // per MW of IT, per in-game hour (the Profit card's unit)
+  return { pue: c.pue, billPerMW: e.bill * 60 * 1000 / c.it, revPerMW: e.rev * 60 * 1000 / c.it };
+}
+/* your current build, moved to each market (Handbook; the report card can reuse it) */
+function marketTable() {
+  return `<table class="cmp"><tr><th>Market</th><th>PUE</th><th>Profit/h</th></tr>${Object.keys(SITES).map(k => {
+    const c = computeCaps({ site: k }), e = econ(c, SITES[k]);
+    return `<tr class="${k === S.site ? "now" : ""}"><td>${SITES[k].name.split(",")[0]}</td><td>${c.pue ? c.pue.toFixed(2) : "–"}</td><td>${c.it ? money(e.rate * 60) : "–"}</td></tr>`;
+  }).join("")}</table>`;
 }
 /* What stops a process from starting? */
 function procBlocker(k) {
@@ -1462,6 +1501,7 @@ function build(k) {
   }
   learn(k);
   if (k === "split" || k === "crac") learn("pue");
+  if (k === "chiller" && n("chiller") === 1 && site().cool <= 0.9) { learn("freecool"); toast("Cold climate: your chillers run on free cooling much of the year.", "good"); }
   invalidate();
   if (S.level >= 2 && cost >= 20000) truck.start();
   renderAll();
@@ -1671,15 +1711,19 @@ function startLevel(lv) {
   renderAll();
 }
 function showSiteModal() {
+  const proj = Object.fromEntries(Object.keys(SITES).map(k => [k, siteProjection(k)])), P = Object.values(proj), SV = Object.values(SITES);
+  const top = { pue: Math.min(...P.map(p => p.pue)), bill: Math.min(...P.map(p => p.billPerMW)), rev: Math.max(...P.map(p => p.revPerMW)), free: Math.max(...SV.map(s => s.freeHours)), wue: Math.min(...SV.map(s => s.wue)) };
   showModal(`
     <div class="eyebrow">Step 1 · Site selection</div>
     <h2>Where will you build?</h2>
     <p class="lead">Every market trades off power price, climate, fiber, water and what customers will pay. Your choice affects the whole game. Figures are illustrative.</p>
-    <div class="choices">${Object.entries(SITES).map(([k, s]) => `
+    <p class="note">Projections use the game's own model for a level-3 style build (24 racks, 2 chillers). Cheapest power is not always most profitable: Luleå customers pay 20% less.</p>
+    <div class="choices">${Object.entries(SITES).map(([k, s]) => { const pr = proj[k], best = (v, x) => v === x ? " " + chip("good", "best") : ""; return `
       <div class="choice"><div><div class="eyebrow">${s.tag}</div><h3>${s.name}</h3></div>
         <dl>${s.facts.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("")}</dl>
+        <dl class="proj"><dt>PUE, Tier III build</dt><dd>${pr.pue.toFixed(2)}${best(pr.pue, top.pue)}</dd><dt>Power bill / MW IT</dt><dd>${money(pr.billPerMW)}/h${best(pr.billPerMW, top.bill)}</dd><dt>Revenue / MW IT</dt><dd>${money(pr.revPerMW)}/h${best(pr.revPerMW, top.rev)}</dd><dt>Free cooling</dt><dd>${s.freeHours.toLocaleString("en-US")} h/yr${best(s.freeHours, top.free)}</dd><dt>Water use</dt><dd>${s.wue} L/kWh${best(s.wue, top.wue)}</dd></dl>
         <p class="pro">+ ${esc(s.plus)}</p><p class="con">− ${esc(s.minus)}</p>
-        <button class="btn primary" data-act="chooseSite" data-k="${k}">Build here</button></div>`).join("")}</div>
+        <button class="btn primary" data-act="chooseSite" data-k="${k}">Build here</button></div>`; }).join("")}</div>
     <div class="foot"><button class="btn ghost lg" data-act="closeModal">Decide later</button></div>`, true);
 }
 function showBuildingModal() {
@@ -1761,8 +1805,9 @@ function simulate(dt) {
   // Overdue racks (until a technician starts work) and racks drying out after a sprinkler discharge earn nothing.
   const down = S.drill && !S.drill.result.ok && S.drill.t > 0.8;
   const downKW = racks.reduce((a, r) => a + (r.built && ((r.incident?.breached && r.incident.state !== "repairing") || r.dryUntil > S.t) ? r.kw : 0), 0);
-  S.rev = down ? 0 : Math.max(0, c.it - downKW) * 16 * site().rev;
-  S.bill = c.facility * c.price * 60;
+  const e = econ(c);
+  S.rev = down ? 0 : downKW ? Math.max(0, c.it - downKW) * 16 * site().rev : e.rev;
+  S.bill = e.bill;
   S.rate = S.rev - S.bill;
   S.budget += S.rate * sdt;
   tickTasks(sdt);
@@ -2097,9 +2142,9 @@ function renderAll() {
   const backup = c.ups || n("gen") ? (genN1() && upsN1() ? "N+1" : c.ups && n("gen") ? "N" : c.ups ? "UPS only" : "Gen only") : "None";
   setHTML($("#kpis"), [
     kpi("bolt", "IT load", c.it >= 1000 ? (c.it / 1000).toFixed(2) : Math.round(c.it), c.it >= 1000 ? "MW" : "kW", c.utilityCap ? `facility ${kw(c.facility)} of ${kw(c.utilityCap)} grid` : "not connected to the grid", powPct > 90 ? "bad" : powPct > 75 ? "warn" : ""),
-    kpi("snow", "Cooling", c.air ? Math.round(coolPct) + "%" : "–", c.air ? "used" : "", c.air ? `${kw(c.airHeat)} heat · ${kw(c.air)} air${c.liquid ? ` · ${kw(c.liquid)} liquid` : ""}` : "no cooling yet", coolPct > 95 ? "bad" : coolPct > 80 ? "warn" : ""),
+    kpi("snow", "Cooling", c.air ? Math.round(coolPct) + "%" : "–", c.air ? "used" : "", c.air ? `${kw(c.airHeat)} heat · ${kw(c.air)} air${c.liquid ? ` · ${kw(c.liquid)} liquid` : ""}${n("chiller") ? ` · ${site().freeHours.toLocaleString("en-US")} h/yr free cooling` : ""}` : "no cooling yet", coolPct > 95 ? "bad" : coolPct > 80 ? "warn" : ""),
     kpi("battery", "Backup power", backup, "", `${c.ups ? "UPS " + kw(c.ups) : "no UPS"} · ${n("gen") ? n("gen") + " gen" : "no generator"}`, !c.ups && c.it ? "warn" : ""),
-    kpi("gauge", "PUE", c.pue ? c.pue.toFixed(2) : "–", "", c.pue ? (c.pue >= 1.8 ? "closet-grade" : c.pue >= 1.45 ? "enterprise-grade" : c.pue > 1.25 ? "efficient" : "hyperscale-grade") : "facility ÷ IT power", ""),
+    kpi("gauge", "PUE", c.pue ? c.pue.toFixed(2) : "–", "", (c.pue ? (c.pue >= 1.8 ? "closet-grade" : c.pue >= 1.45 ? "enterprise-grade" : c.pue > 1.25 ? "efficient" : "hyperscale-grade") : "facility ÷ IT power") + (S.site ? ` · ${site().name.split(",")[0]} climate ×${site().cool}` : ""), ""),
     kpi("wallet", "Profit", c.it ? (S.rate < 0 ? "−" : "") + money(Math.abs(S.rate * 60)) : "–", c.it ? "/h" : "", c.it ? `revenue ${money(S.rev * 60)} − power ${money(S.bill * 60)}${S.credits ? ` · SLA credits ${money(S.credits)}` : ""}` : `power ${S.site ? "$" + c.price.toFixed(3) + "/kWh" : "price set by location"}`, S.rate < 0 ? "bad" : ""),
   ].join(""));
 
@@ -2130,13 +2175,28 @@ function renderAll() {
   const rb = $("#resetBtn"); if (rb) rb.textContent = S.confirmReset ? "Click again to erase" : "Start over";
   document.querySelectorAll("[data-prog]").forEach(el => { const t = S.tasks[el.dataset.prog]; el.style.width = t ? Math.min(100, t.t / t.dur * 100) + "%" : "0"; });
 }
+/* the 'After you build' row: what the model says changes, before the player pays */
+function previewRow({ before, after }, cost, k) {
+  const p = v => v ? v.toFixed(2) : "–";
+  const eb = econ(before), ea = econ(after), dRate = ea.rate - eb.rate, chips = [];
+  if ((after.it || before.it) && Math.abs(after.pue - before.pue) > 0.004) chips.push(chip(after.pue < before.pue ? "good" : "warn", `PUE ${p(before.pue)} → ${p(after.pue)}`));
+  if (after.facility !== before.facility) chips.push(chip(after.utilityCap && after.facility > after.utilityCap ? "bad" : "idle", `Facility ${kw(before.facility)} → ${kw(after.facility)}${after.utilityCap ? ` of ${kw(after.utilityCap)} grid` : ""}`));
+  if (Math.abs(dRate) > 0.5) chips.push(chip(dRate > 0 ? "good" : "warn", `Profit ${dRate > 0 ? "+" : "−"}${money(Math.abs(dRate * 60))}/h`));
+  const mins = Math.max(1, Math.ceil(cost / dRate / 60)); // dRate is $ per real second at 1×
+  if (dRate > 0.5 && cost) chips.push(chip("idle", `Pays back in ~${mins >= 120 ? Math.round(mins / 60) + " h" : mins + " min"} of play`));
+  if (!chips.length) chips.push(chip("idle", ["ups", "upsSmall", "gen"].includes(k) ? "No PUE change · protects uptime" : k === "bms" ? "No PUE change · buys response time" : "No change to PUE or profit"));
+  if (k === "chiller" && ITEMS.chiller.options[S.choice.chiller ?? 0].water) chips.push(chip("warn", `Water ~${Math.round(300 * 1.8 * 24 / 1000 * (site().waterStress ? 1.4 : 1))} m³/day (in this game)`));
+  return `<div class="specs preview"><span class="eyebrow" style="align-self:center">After you build</span>${chips.join("")}</div>`;
+}
 function renderLesson() {
   const lesson = $("#lesson"), sel = S.selected;
   if (sel && sel.startsWith("proc:")) {
     const k = sel.slice(5), p = PROCS[k], b = procBlocker(k), t = S.tasks[k];
+    const pv = !b?.lock && !t ? previewProc(k) : null;
     lesson.hidden = false;
     setHTML(lesson, `<div class="lesson-top"><span class="part-ico">${ICON[p.icon]}</span><div><div class="eyebrow">Process${p.level ? " · Level " + p.level : ""}</div><h3>${p.name}</h3></div><button class="x" data-act="closeLesson" aria-label="Close lesson">${ICON.x}</button></div>
       <div class="specs">${procCost(k) ? chip("idle", money(procCost(k))) : ""}${procDur(k) ? chip("idle", `takes ${procDur(k)} s`) : ""}</div>
+      ${pv ? previewRow(pv, procCost(k), k) : ""}
       ${lessonBody(p)}
       ${t && !t.done ? `<div class="bar"><i data-prog="${k}"></i></div>` : ""}
       <div class="lesson-foot"><span class="why ${b && !b.lock ? "" : "ok"}" id="lessonWhy" aria-live="off"></span>
@@ -2146,12 +2206,14 @@ function renderLesson() {
   } else if (sel && ITEMS[sel]) {
     lesson.hidden = false;
     const k = sel, it = ITEMS[k], b = blocker(k), ci = S.choice[k] ?? 0;
+    const pv = it.level <= S.level && !b?.built && !b?.lock ? previewBuild(k, ci) : null;
     const needBtn = b?.needProc ? `<button class="btn ghost" data-act="proc" data-k="${b.needProc}">${PROCS[b.needProc].name}</button>`
       : b && b.need && b.need !== k && ITEMS[b.need] ? `<button class="btn ghost" data-act="item" data-k="${b.need}">Show ${ITEMS[b.need].name}</button>` : "";
     const opts = it.options ? `<div class="lesson-body"><h4>Choose a product</h4></div><div class="opts">${it.options.map((o, i) => `
       <button class="opt" data-act="opt" data-k="${k}" data-i="${i}" aria-pressed="${ci === i}"><span class="opt-top"><span class="vtag ${o.jci ? "jci" : ""}">${o.jci ? "JCI" : "Non-JCI"}</span><span class="cost">${money(costOf(k, i))}</span></span><b>${o.name}</b><small>${esc(o.note)}${o.water && site().waterStress ? " Water is scarce here: +15% cost." : ""}</small><span class="specs">${(o.stats || []).map(s => chip("idle", esc(s))).join("")}</span></button>`).join("")}</div>` : "";
     setHTML(lesson, `<div class="lesson-top"><span class="part-ico">${ICON[it.icon]}</span><div><div class="eyebrow">${it.cat} · Level ${it.level} · ${brandTag(k)}</div><h3>${it.name}</h3></div><button class="x" data-act="closeLesson" aria-label="Close lesson">${ICON.x}</button></div>
       <div class="specs">${chip("info", it.spec)}${it.max > 1 ? chip("idle", `${n(k)} of ${it.max} built`) : ""}</div>
+      ${pv ? previewRow(pv, costOf(k, ci), k) : ""}
       ${lessonBody(it)}${opts}
       <div class="lesson-foot"><span class="why ${b ? "" : "ok"}" id="lessonWhy" aria-live="off"></span>${needBtn}
       <button class="btn primary" data-act="build" data-k="${k}" ${b ? "disabled" : ""}>Build · ${money(costOf(k))}</button></div>`);
@@ -2187,10 +2249,11 @@ function renderSide(c, L, hint, open) {
     }).join("")}</div>`;
   } else if (S.tab === "handbook") {
     // the handbook is a large string: rebuild it only when something it shows has changed
-    const hbKey = [S.learned.length, JSON.stringify(S.quiz || {}), JSON.stringify(S.picks), JSON.stringify(S.built), rackCount(), S.site, S.level, [...HB_OPEN].join()].join("|");
+    const hbKey = [S.learned.length, JSON.stringify(S.quiz || {}), JSON.stringify(S.picks), JSON.stringify(S.built), rackCount(), S.site, S.level, procDone("ppa"), [...HB_OPEN].join()].join("|");
     if (hbCache.key === hbKey) side = hbCache.html;
     else {
       side += `<p class="note">Everything you've built, done or met so far, newest first.</p>`;
+      if (S.site) side += `<div><div class="sec-title">Same build, other markets <span>in this game</span></div>${marketTable()}</div>`;
       side += `<div>${S.learned.slice().reverse().map(k => {
         const x = ITEMS[k] || CONCEPTS[k] || PROCS[k] || (k === "cx" ? CX : null); if (!x) return "";
         const kind = ITEMS[k] ? `${ITEMS[k].cat}` : PROCS[k] ? "Process" : "Key idea";
