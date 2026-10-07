@@ -968,6 +968,27 @@ function cyl(rt, rb, h, m, x, y, z, parent = scene, seg = 20) {
   mesh.position.set(x, y + h / 2, z); mesh.castShadow = true; mesh.receiveShadow = true;
   parent.add(mesh); return mesh;
 }
+/* static groups: bake each plain mesh's transform into its geometry and merge per material, so a group draws in a few calls instead of dozens.
+   Textured meshes (decals) and sub-groups (chiller fans, pallets) are kept as they are. Call before info() and pivot(). */
+function mergeGroup(g) {
+  if (!THREE.BufferGeometryUtils) return g;
+  const buckets = new Map(), keep = [];
+  for (const ch of [...g.children]) {
+    if (!ch.isMesh || ch.material.map) { keep.push(ch); continue; }
+    ch.updateMatrix();
+    const key = ch.material.uuid + "|" + ch.castShadow + "|" + ch.receiveShadow;
+    const geo = ch.geometry.clone().applyMatrix4(ch.matrix); ch.geometry.dispose();
+    if (!buckets.has(key)) buckets.set(key, { mat: ch.material, cast: ch.castShadow, recv: ch.receiveShadow, geos: [] });
+    buckets.get(key).geos.push(geo);
+  }
+  g.remove(...g.children); keep.forEach(ch => g.add(ch));
+  for (const b of buckets.values()) {
+    const merged = b.geos.length > 1 ? THREE.BufferGeometryUtils.mergeBufferGeometries(b.geos, false) : b.geos[0];
+    (merged ? [merged] : b.geos).forEach(geo => { const m = new THREE.Mesh(geo, b.mat); m.castShadow = b.cast; m.receiveShadow = b.recv; g.add(m); });
+    if (merged && b.geos.length > 1) b.geos.forEach(geo => geo.dispose());
+  }
+  return g;
+}
 function textTexture(draw, w = 512, h = 128) {
   const c = document.createElement("canvas"); c.width = w; c.height = h;
   draw(c.getContext("2d"), w, h);
@@ -1001,7 +1022,7 @@ function info(obj, key) { obj.traverse(o => { if (o.isMesh) { o.userData.info = 
 /* build slots: key -> groups, hidden until built */
 const SLOTS = {};
 function slot(key, build) {
-  const g = new THREE.Group(); build(g); g.visible = false; scene.add(g);
+  const g = new THREE.Group(); build(g); mergeGroup(g); g.visible = false; scene.add(g);
   (SLOTS[key] = SLOTS[key] || []).push(g); info(g, key); return g;
 }
 
@@ -1011,10 +1032,12 @@ ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
 box(56, 0.08, 29, COL.pad, 5.5, 0, -3.5, scene, false);
 box(400, 0.1, 6, COL.road, 0, 0, 14, scene, false);
 box(6, 0.1, 60, COL.road, -28, 0, -19, scene, false);
-for (let x = -120; x <= 120; x += 5) if (Math.abs(x + 28) > 4) box(2.2, 0.02, 0.18, 0xffffff, x, 0.1, 14, scene, false);
-for (let z = -46; z <= 8; z += 5) box(0.18, 0.02, 2.2, 0xffffff, -28, 0.1, z, scene, false);
-box(400, 0.03, 0.14, 0xffffff, 0, 0.1, 11.2, scene, false);
-box(400, 0.03, 0.14, 0xffffff, 0, 0.1, 16.8, scene, false);
+const marks = new THREE.Group(); scene.add(marks);
+for (let x = -120; x <= 120; x += 5) if (Math.abs(x + 28) > 4) box(2.2, 0.02, 0.18, 0xffffff, x, 0.1, 14, marks, false);
+for (let z = -46; z <= 8; z += 5) box(0.18, 0.02, 2.2, 0xffffff, -28, 0.1, z, marks, false);
+box(400, 0.03, 0.14, 0xffffff, 0, 0.1, 11.2, marks, false);
+box(400, 0.03, 0.14, 0xffffff, 0, 0.1, 16.8, marks, false);
+mergeGroup(marks);
 
 function pallet(x, z, stack = 2, parent = scene) {
   const g = new THREE.Group();
@@ -1024,15 +1047,17 @@ function pallet(x, z, stack = 2, parent = scene) {
     box(0.56, 0.45, 0.56, (i + j) % 2 ? COL.crate : COL.crate2, cx, y, cz, g);
     box(0.57, 0.02, 0.1, 0xc08f58, cx, y + 0.44, cz, g, false);
   }
-  g.position.set(x, 0, z); parent.add(g); return g;
+  mergeGroup(g); g.position.set(x, 0, z); parent.add(g); return g;
 }
-function tree(x, z, s = 1) {
-  cyl(0.12 * s, 0.16 * s, 0.9 * s, COL.trunk, x, 0, z);
+function tree(x, z, s = 1, parent = scene) {
+  cyl(0.12 * s, 0.16 * s, 0.9 * s, COL.trunk, x, 0, z, parent);
   const top = new THREE.Mesh(new THREE.SphereGeometry(0.85 * s, 16, 12), mat(Math.random() < 0.5 ? COL.tree : COL.tree2));
-  top.scale.y = 1.35; top.position.set(x, 0.9 * s + 1.05 * s, z); top.castShadow = true; scene.add(top);
+  top.scale.y = 1.35; top.position.set(x, 0.9 * s + 1.05 * s, z); top.castShadow = true; parent.add(top);
 }
+const treesG = new THREE.Group(); scene.add(treesG);
 [[-33, -10], [-33, -2], [-34, 6], [-34, -18], [-19, -15], [-11, -15], [-3, -14], [31, -6], [31, 2], [30, 7], [22, 9], [-10, 21], [2, 20.5], [16, 21], [28, 20], [-22, 20], [34, -14], [6.5, 7.5], [-1, -12]]
-  .forEach(([x, z], i) => tree(x, z, 0.85 + (i % 3) * 0.15));
+  .forEach(([x, z], i) => tree(x, z, 0.85 + (i % 3) * 0.15, treesG));
+mergeGroup(treesG);
 
 /* ---------- Hall B: your building from day one (cutaway) ---------- */
 const hallB = new THREE.Group(); scene.add(hallB);
@@ -1049,7 +1074,7 @@ box(0.32, 0.08, 12.42, COL.blue, 17.65, 1.05, -2, hallB, false);
 box(8.6, 0.02, 1.9, 0xdde6ff, 7.83, 0.25, -6.65, hallB, false);
 box(8.6, 0.02, 2.9, 0xdde6ff, 7.83, 0.25, -1.4, hallB, false);
 box(8.6, 0.02, 1.1, 0xdde6ff, 7.83, 0.25, 3.3, hallB, false);
-info(hallB, "hallB");
+mergeGroup(hallB); info(hallB, "hallB");
 
 const ROWS = [
   { n: "A", z: -5.0, f: -1, aisle: -6.6 },
@@ -1068,12 +1093,12 @@ for (const x of [2.5, 7.9, 12.5, 17.5]) {
   end.rotation.y = Math.PI / 2; end.position.set(2.2, 0.25, -2); end.receiveShadow = true; hangarExtras.add(end);
   const door = decal(word("HANGAR 1"), 4.4, 1.1, hangarExtras); door.rotation.y = Math.PI / 2; door.position.set(2.24, 4.6, -2); }
 for (const x of [4.4, 8.2, 12.0, 15.7]) box(0.08, 0.08, 12.4, 0x9aa6c4, x, 6.3, -2, hangarExtras, false);
-hangarExtras.visible = false;
+mergeGroup(hangarExtras); hangarExtras.visible = false;
 // warehouse: low roof trusses
 const warehouseExtras = new THREE.Group(); scene.add(warehouseExtras);
 for (const x of [2.6, 6.4, 10.2, 14, 17.4]) { box(0.12, 0.3, 12.4, 0x9aa6c4, x, 3.4, -2, warehouseExtras); }
 box(15.4, 0.12, 0.12, 0x9aa6c4, 10, 3.6, -2, warehouseExtras, false);
-warehouseExtras.visible = false;
+mergeGroup(warehouseExtras); warehouseExtras.visible = false;
 hallB.visible = false;
 // empty lot marker for site selection
 const lot = new THREE.Group(); scene.add(lot);
@@ -1081,7 +1106,7 @@ box(16, 0.05, 13, 0xe9edf6, 10, 0.08, -2, lot, false);
 // the survey stakes pulse while the lot is the thing to click (first run: pick a site; then: buy a building)
 const stakeMat = new THREE.MeshStandardMaterial({ color: COL.orange, emissive: 0xff7a1a, emissiveIntensity: 0, roughness: 0.6 });
 for (const [x, z] of [[2, -8.5], [18, -8.5], [2, 4.5], [18, 4.5]]) { cyl(0.06, 0.06, 0.9, stakeMat, x, 0, z, lot, 8); }
-info(lot, "lot");
+mergeGroup(lot); info(lot, "lot");
 
 /* racks */
 const SLOT_FRAC = s => 0.1 + (s + 0.5) * 0.1333;
@@ -1096,11 +1121,13 @@ function rackTexture(gpu) {
     }
   }, 64, 192);
 }
+// the four side faces (+x, -x, +y, -y) come first in BoxGeometry's index order: draw them as one group and front/back as another (2 calls per rack, not 6)
 const rackGeo = new THREE.BoxGeometry(0.72, 2.1, 1.0);
+{ const [a, , , d, e, f] = rackGeo.groups; rackGeo.clearGroups(); rackGeo.addGroup(a.start, d.start + d.count - a.start, 0); rackGeo.addGroup(e.start, f.start + f.count - e.start, 1); }
 function rackMats(gpu) {
   const side = mat(gpu ? 0x16303f : COL.rack, { roughness: 0.55 });
   const front = new THREE.MeshStandardMaterial({ map: rackTexture(gpu), roughness: 0.5 });
-  return [side, side, side, side, front, front];
+  return [side, front];
 }
 const RACK_MAT = rackMats(false), GPU_MAT = rackMats(true);
 const LEDS_PER = 12;
@@ -1172,7 +1199,7 @@ for (const [x, z] of [[14.0, 6.4], [16.4, 6.4], [14.0, 8.8], [16.4, 8.8]]) slot(
 const GEN_Z = [-1.6, 1.2, 4.0, 6.8, 9.6, -4.4];
 const genPad = box(5.2, 0.12, 17, 0xd9deeb, -20.5, 0, 2.6, scene, false); genPad.visible = false;
 const fuelTank = new THREE.Group(); scene.add(fuelTank); fuelTank.visible = false;
-{ const t = cyl(0.75, 0.75, 4.0, COL.white, 0, 0, 0, fuelTank); t.rotation.x = Math.PI / 2; t.position.set(-16.9, 0.9, 5.0); box(0.2, 0.5, 3.4, 0x8f98b0, -16.9, 0, 5.0, fuelTank); info(fuelTank, "fuel"); }
+{ const t = cyl(0.75, 0.75, 4.0, COL.white, 0, 0, 0, fuelTank); t.rotation.x = Math.PI / 2; t.position.set(-16.9, 0.9, 5.0); box(0.2, 0.5, 3.4, 0x8f98b0, -16.9, 0, 5.0, fuelTank); mergeGroup(fuelTank); info(fuelTank, "fuel"); }
 const genGroups = GEN_Z.map(z => slot("gen", g => {
   const x = -20.5;
   box(4.0, 2.0, 1.9, COL.white, x, 0.12, z, g);
@@ -1300,7 +1327,7 @@ function makeTruck(cabColor, name, tagline) {
   });
   const s1 = decal(t, 4.6, 1.15, g); s1.position.set(-0.6, 1.95, 1.111);
   const s2 = decal(t, 4.6, 1.15, g); s2.position.set(-0.6, 1.95, -1.111); s2.rotation.y = Math.PI;
-  return g;
+  return mergeGroup(g);
 }
 const truck = { g: makeTruck(COL.blue, "DCB Logistics", "Equipment delivery"), phase: "idle", turn: 0, wait: 0, dockX: 9.5, dockZ: 8.2 };
 truck.g.visible = false; scene.add(truck.g); info(truck.g, "truck");
@@ -1336,7 +1363,7 @@ function makeCart(color) {
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), mat(0xd9a37b)); head.position.set(0, 1.05, -0.22); head.castShadow = true; g.add(head);
   const hat = new THREE.Mesh(new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(COL.yellow)); hat.position.set(0, 1.09, -0.22); g.add(hat);
   for (const [x, z] of [[-0.29, 0.3], [0.29, 0.3], [-0.29, -0.3], [0.29, -0.3]]) { const w = cyl(0.09, 0.09, 0.06, 0x232838, x, 0, z, g); w.rotation.z = Math.PI / 2; w.position.y = 0.12; }
-  g.position.y = 0.25; g.visible = false; scene.add(g); info(g, "crew"); return g;
+  mergeGroup(g); g.position.y = 0.25; g.visible = false; scene.add(g); info(g, "crew"); return g;
 }
 const LANE_X = 13.5;
 const crews = [
