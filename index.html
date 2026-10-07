@@ -215,6 +215,7 @@ svg { display: block; flex: none; }
 /* ---------- modal ---------- */
 .scrim { position: fixed; inset: 0; z-index: 20; background: rgba(18, 26, 51, 0.28); display: grid; place-items: center; padding: 16px; }
 .modal { width: min(560px, 100%); max-height: calc(100% - 32px); overflow-y: auto; background: var(--panel-solid); border-radius: 18px; box-shadow: 0 20px 60px rgba(18,26,51,.25); padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.modal:focus { outline: none; }
 .modal h2 { margin: 2px 0 0; font-size: 22px; letter-spacing: -0.02em; text-wrap: balance; }
 .modal .lead { margin: 0; font-size: 13.5px; color: var(--muted); max-width: 62ch; }
 .modal .result { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 12px; }
@@ -784,7 +785,7 @@ function procCost(k) {
 function procDur(k) { return k === "permit" ? (S.building ? bld().permit : 0) : PROCS[k].dur || 0; }
 function costOf(k, i = S.choice[k] ?? 0) {
   const it = ITEMS[k], o = it.options?.[i];
-  let c = (o ? o.cost : it.cost) * site().equip;
+  let c = (o ? o.cost : it.cost ?? Math.min(...it.options.map(x => x.cost))) * site().equip;
   if (k === "substation" && S.site === "ashburn") c *= 1.3;
   if (o?.water && site().waterStress) c *= 1.15;
   return Math.round(c / 1000) * 1000;
@@ -879,7 +880,7 @@ function blocker(k) {
     if (after.facility > c.utilityCap) return { why: `Grid service too small: ${kw(after.facility)} facility load vs ${kw(c.utilityCap)}`, need: powerItem() };
     if (c.ups && after.it > c.ups) return { why: `The UPS would be overloaded: ${kw(after.it)} vs ${kw(c.ups)}`, need: S.level >= 2 ? "ups" : null };
   }
-  if (S.budget < costOf(k)) return { why: `Need ${money(costOf(k) - S.budget)} more. Your racks earn while you wait`, money: true };
+  if (S.budget < costOf(k)) return { why: `Need ${money(Math.ceil((costOf(k) - S.budget) / 5000) * 5000)} more. Your racks earn while you wait`, money: true };
   return null;
 }
 
@@ -919,7 +920,7 @@ function resize() {
   camera.top = view / 2 + sy; camera.bottom = -view / 2 + sy;
   camera.updateProjectionMatrix();
 }
-new ResizeObserver(resize).observe(wrap);
+new ResizeObserver(() => { resize(); layoutLesson(); }).observe(wrap);
 resize();
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0xb6c1e6, 0.62); scene.add(hemi);
@@ -1448,6 +1449,8 @@ function finishDrill() {
   if (result.ok) S.passed[key] = true;
   else { (S.failed = S.failed || {})[key] = true; S.uptime = Math.max(95, S.uptime - 0.05); }
   const d = DRILLS[key], fix = !result.ok && result.fix && ITEMS[result.fix] ? result.fix : null;
+  // never replace a flow-critical dialog (level complete, quiz, site choice) with a drill result
+  if ($("#modalRoot .modal")) { toast(result.text, result.ok ? "good" : "bad"); renderAll(); return; }
   showModal(`
     <div class="eyebrow">Drill · ${d.name}</div>
     <h2>${result.ok ? "Passed" : "Failed. Now you know what to fix."}</h2>
@@ -1469,14 +1472,22 @@ function checkLevel() {
   if (S.completed || S.levelShown === S.level || !objList(L).every(objDone)) return;
   if ($("#modalRoot").firstChild) return; // re-checked when the open dialog closes
   S.levelShown = S.level;
-  const last = S.level === LEVELS.length - 1, next = LEVELS[S.level + 1];
-  setTimeout(() => showModal(`
+  const lv = S.level;
+  setTimeout(() => {
+    if (S.level !== lv || S.completed) return;
+    if ($("#modalRoot").firstChild) { S.levelShown = -1; return; } // another dialog got there first: retry when it closes
+    showLevelDone();
+  }, 500);
+}
+function showLevelDone() {
+  const L = LEVELS[S.level], last = S.level === LEVELS.length - 1, next = LEVELS[S.level + 1];
+  showModal(`
     <div class="eyebrow">${L.n ? `Level ${L.n} complete · ${L.tier}` : "Planning complete"}</div>
     <h2>${last ? "Your AI campus is running" : L.n ? `${L.name} complete` : "You own a site. Time to build."}</h2>
     <p class="lead">${last ? "You've grown a server closet into a megawatt AI campus. Real operators take the same path, one constraint at a time." : `Next up: <b>${next.name}</b> (${next.tier}).`}</p>
     <div class="concept lesson-body"><h4>What you learned</h4><ul class="learned">${L.learned.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
     ${last ? "" : S.budget >= next.grant ? `<p class="lead">You're already funded for the next level.</p>` : `<p class="lead">Investors top your budget up to <b>${money(next.grant)}</b>.</p>`}
-    <div class="foot"><button class="btn ghost lg" data-act="${last ? "sandbox" : "nextLevel"}">Skip the check</button><button class="btn primary lg" data-act="quiz">Take the ${QUIZ[S.level].qs.length}-question check · up to ${money(QUIZ[S.level].bonus * QUIZ[S.level].qs.length)}</button></div>`), 500);
+    <div class="foot"><button class="btn ghost lg" data-act="${last ? "sandbox" : "nextLevel"}">Skip the check</button><button class="btn primary lg" data-act="quiz">Take the ${QUIZ[S.level].qs.length}-question check · up to ${money(QUIZ[S.level].bonus * QUIZ[S.level].qs.length)}</button></div>`, false, "levelDone");
 }
 
 /* ---------- knowledge check after each level ---------- */
@@ -1521,13 +1532,18 @@ function showQuiz() {
       const st = ans[i] == null ? "" : j === q.c ? "right" : j === ans[i] ? "wrong" : "dim";
       return `<button class="qopt ${st}" data-act="qa" data-q="${i}" data-i="${j}" ${ans[i] != null ? "disabled" : ""}>${esc(a)}</button>`;
     }).join("")}</div>${ans[i] != null ? `<p class="qwhy ${ans[i] === q.c ? "right" : "wrong"}">${ans[i] === q.c ? "Right. " : "Not quite. "}${esc(q.why)}</p>` : ""}</div>`).join("")}
-    <div class="foot"><button class="btn primary lg" data-act="quizDone">${answered < Q.qs.length ? "Skip the rest" : last ? "Collect and finish" : `Collect and start level ${S.level + 1}`}</button></div>`);
+    <div class="foot"><button class="btn primary lg" data-act="quizDone">${answered < Q.qs.length ? "Skip the rest" : last ? "Collect and finish" : `Collect and start level ${S.level + 1}`}</button></div>`, false, "quiz");
 }
 function answerQuiz(q, i) {
   const ans = S.quizAns || (S.quizAns = []);
   if (ans[q] != null) return;
+  // the re-render replaces the dialog: keep the scroll position and move focus to the next open question, not "Skip the rest"
+  const m = $("#modalRoot .modal"), st = m ? m.scrollTop : 0;
   ans[q] = i;
   showQuiz();
+  const m2 = $("#modalRoot .modal");
+  if (m2) m2.scrollTop = st;
+  (m2?.querySelector(".qopt:not(:disabled)") || m2?.querySelector(".btn.primary"))?.focus({ preventScroll: true });
 }
 function finishQuiz() {
   const lv = S.level, Q = QUIZ[lv], ans = S.quizAns || [];
@@ -1781,47 +1797,91 @@ const catMatch = (k, cat) => cat === "All" || (cat === "JCI" ? ITEMS[k].jci !== 
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-act]"); if (!el) return;
   const a = el.dataset.act, k = el.dataset.k;
-  if (a === "zoomin" || a === "zoomout") { camera.zoom = clamp(camera.zoom * (a === "zoomin" ? 1.25 : 0.8), controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); }
-  else if (a === "rotl") rotateView(Math.PI / 4);
-  else if (a === "rotr") rotateView(-Math.PI / 4);
-  else if (a === "home") { const L = S.completed ? { x: 2, z: -2, zoom: 0.85 } : LEVELS[S.level].camera; camera.position.copy(controls.target).add(CAM_OFFSET); flyTo(L.x, L.z, L.zoom); }
-  else if (a === "item") selectItem(k);
-  else if (a === "proc") selectProc(k);
-  else if (a === "startProc") startProc(k);
-  else if (a === "opt") { S.choice[k] = +el.dataset.i; }
-  else if (a === "build") build(k);
-  else if (a === "closeLesson") S.selected = null;
-  else if (a === "tab") S.tab = el.dataset.tab;
-  else if (a === "alerts") S.tab = "alerts";
-  else if (a === "cat") S.cat = el.dataset.cat;
-  else if (a === "drill") runDrill(k);
-  else if (a === "dispatch") dispatch(S.incidents.find(i => i.id === el.dataset.id));
-  else if (a === "chooseSite") chooseSite(k);
-  else if (a === "buyBuilding") buyBuilding(k);
-  else if (a === "closeModal") closeModal();
-  else if (a === "showItem") { closeModal(); selectItem(k); }
-  else if (a === "nextLevel") { closeModal(); startLevel(S.level + 1); }
-  else if (a === "sandbox") { closeModal(); S.completed = true; flyTo(2, -2, 0.85); save(); }
-  else if (a === "quiz") { S.quizAns = []; S.quizOrder = null; showQuiz(); }
-  else if (a === "qa") answerQuiz(+el.dataset.q, +el.dataset.i);
-  else if (a === "quizDone") finishQuiz();
-  else if (a === "resume") closeModal();
-  else if (a === "reset") { if (S.confirmReset) { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); return; } S.confirmReset = true; setTimeout(() => { S.confirmReset = false; renderAll(); }, 4000); }
-  else if (a === "hintGo") { const h = nextHint(); if (h?.kind === "item") selectItem(h.key); else if (h?.kind === "proc") selectProc(h.key); else if (h?.kind === "drill") runDrill(h.key); }
-  renderAll();
+  try {
+    if (a === "zoomin" || a === "zoomout") { camera.zoom = clamp(camera.zoom * (a === "zoomin" ? 1.25 : 0.8), controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); }
+    else if (a === "rotl") rotateView(Math.PI / 4);
+    else if (a === "rotr") rotateView(-Math.PI / 4);
+    else if (a === "home") { const L = S.completed ? { x: 2, z: -2, zoom: 0.85 } : LEVELS[S.level].camera; camera.position.copy(controls.target).add(CAM_OFFSET); flyTo(L.x, L.z, L.zoom); }
+    else if (a === "item") selectItem(k);
+    else if (a === "proc") selectProc(k);
+    else if (a === "startProc") startProc(k);
+    else if (a === "opt") { S.choice[k] = +el.dataset.i; }
+    else if (a === "build") build(k);
+    else if (a === "closeLesson") S.selected = null;
+    else if (a === "tab") S.tab = el.dataset.tab;
+    else if (a === "alerts") S.tab = "alerts";
+    else if (a === "cat") S.cat = el.dataset.cat;
+    else if (a === "drill") runDrill(k);
+    else if (a === "dispatch") dispatch(S.incidents.find(i => i.id === el.dataset.id));
+    else if (a === "chooseSite") chooseSite(k);
+    else if (a === "buyBuilding") buyBuilding(k);
+    else if (a === "closeModal") closeModal();
+    else if (a === "showItem") { closeModal(); selectItem(k); }
+    else if (a === "nextLevel") { closeModal(); startLevel(S.level + 1); }
+    else if (a === "sandbox") { closeModal(); S.completed = true; flyTo(2, -2, 0.85); save(); }
+    else if (a === "quiz") { S.quizAns = []; S.quizOrder = null; showQuiz(); }
+    else if (a === "qa") answerQuiz(+el.dataset.q, +el.dataset.i);
+    else if (a === "quizDone") finishQuiz();
+    else if (a === "resume") closeModal();
+    else if (a === "levelDone") { S.levelShown = S.level; showLevelDone(); }
+    else if (a === "reset") {
+      if (S.confirmReset) { resetting = true; try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); return; }
+      S.confirmReset = true; el.textContent = "Click again to erase";
+      setTimeout(() => { S.confirmReset = false; if (el.isConnected) el.textContent = "Start over"; renderAll(); }, 4000);
+    }
+    else if (a === "hintGo") { const h = nextHint(); if (h?.kind === "item") selectItem(h.key); else if (h?.kind === "proc") selectProc(h.key); else if (h?.kind === "drill") runDrill(h.key); }
+    renderAll();
+    if (a === "cat") layoutLesson();
+  } catch (err) {
+    const now = performance.now();
+    if (now - errAt > 1000) { errAt = now; console.error(err); }
+  }
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if ($("#modalRoot").firstChild) closeModal(); else { S.selected = null; renderAll(); } } });
 
-function showModal(html, wide) {
-  $("#modalRoot").innerHTML = `<div class="scrim"><div class="modal ${wide ? "wide" : ""}" role="dialog" aria-modal="true">${html}</div></div>`;
-  $("#modalRoot .modal .btn.primary")?.focus();
+/* Modals: one at a time, named by their h2, background made inert, focus restored on close.
+   kind marks flow-critical dialogs (levelDone, quiz) so closing one re-arms the level check. */
+let modalPrevSel = null;
+function showModal(html, wide, kind = "") {
+  const root = $("#modalRoot");
+  if (!root.firstChild) modalPrevSel = selFor(document.activeElement);
+  root.innerHTML = `<div class="scrim"><div class="modal ${wide ? "wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1" ${kind ? `data-kind="${kind}"` : ""}>${html}</div></div>`;
+  const h2 = root.querySelector("h2"); if (h2) h2.id = "modalTitle";
+  $(".app").inert = true;
+  root.querySelector(".modal").focus({ preventScroll: true });
 }
-function closeModal() { $("#modalRoot").innerHTML = ""; checkLevel(); }
+function closeModal() {
+  const kind = $("#modalRoot .modal")?.dataset.kind;
+  $("#modalRoot").innerHTML = "";
+  $(".app").inert = false;
+  if (kind === "levelDone" || kind === "quiz") S.levelShown = -1;
+  if (modalPrevSel) document.querySelector(modalPrevSel)?.focus({ preventScroll: true });
+  modalPrevSel = null;
+  checkLevel();
+}
 
 /* =====================================================================
    UI
    ===================================================================== */
-function setHTML(el, html) { if (el._h !== html) { el._h = html; el.innerHTML = html; } }
+/* a CSS selector that finds the same action button again after an innerHTML rebuild */
+const selFor = f => { const d = f?.dataset; if (!d?.act) return null; return `[data-act="${d.act}"]` + ["k", "tab", "cat", "i", "id", "q"].filter(a => d[a] != null).map(a => `[data-${a}="${d[a]}"]`).join(""); };
+function setHTML(el, html) {
+  if (el._h === html) return;
+  const f = document.activeElement, sel = f && el.contains(f) ? selFor(f) : null;
+  el._h = html; el.innerHTML = html;
+  if (sel) el.querySelector(sel)?.focus({ preventScroll: true });
+}
+/* Handbook entries the player opened: kept across rebuilds (toggle does not bubble, so listen in the capture phase) */
+const HB_OPEN = new Set();
+document.addEventListener("toggle", e => { const d = e.target.closest?.("details.hb"); if (d?.dataset.k) { d.open ? HB_OPEN.add(d.dataset.k) : HB_OPEN.delete(d.dataset.k); } }, true);
+let hbCache = { key: null, html: "" };
+/* the lesson card floats above the build bar on wide screens; measured only when something resizes, not every tick */
+function layoutLesson() {
+  const lessonEl = $("#lesson"), buildEl = document.querySelector(".build");
+  if (innerWidth > 900 && buildEl) { const bt = buildEl.offsetHeight + 28; lessonEl.style.bottom = bt + "px"; lessonEl.style.maxHeight = Math.max(160, document.querySelector(".stage").clientHeight - bt - 104) + "px"; }
+  else { lessonEl.style.bottom = ""; lessonEl.style.maxHeight = ""; }
+}
+new ResizeObserver(layoutLesson).observe(document.querySelector(".build"));
 const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
 function brandTag(k, picks) {
   const it = ITEMS[k];
@@ -1864,7 +1924,7 @@ function nextHint() {
       else {
         // if the design would fail and the player already saw it fail, point at the fix instead
         const r = d.test(C());
-        a = !r.ok && r.fix && S.failed?.[o.drill] && ITEMS[r.fix] && !blocker(r.fix)?.lock ? { ...(actionFor("item", r.fix) || {}), why: r.text } : { kind: "drill", key: o.drill };
+        a = !r.ok && r.fix && S.failed?.[o.drill] && ITEMS[r.fix] && !blocker(r.fix)?.lock ? { ...(actionFor("item", r.fix) || {}), why: r.text } : { kind: "drill", key: o.drill, ok: r.ok };
       }
     }
     else if (o.proc) a = actionFor("proc", o.proc);
@@ -1872,7 +1932,7 @@ function nextHint() {
     if (!a) continue;
     if (a.wait) { waiting = waiting || a.wait; continue; }
     const why = a.why ? esc(a.why) + " " : "";
-    if (a.kind === "drill") return { ...a, text: `Everything's in place. Run the <b>${DRILLS[a.key].name.toLowerCase()}</b> drill to prove your design works.`, label: "Run drill" };
+    if (a.kind === "drill") return { ...a, text: a.ok ? `Everything's in place. Run the <b>${DRILLS[a.key].name.toLowerCase()}</b> drill to prove your design works.` : `Build goals are done. Run the <b>${DRILLS[a.key].name.toLowerCase()}</b> drill to test the design before customers do.`, label: "Run drill" };
     if (a.kind === "proc") return { ...a, text: `${why}Next: <b>${PROCS[a.key].name}</b>, toward “${esc(o.label)}”.`, label: PROCS[a.key].modal ? "Open" : "Read and start" };
     const nm = ITEMS[a.key].name, art = /^[AEIOU]/i.test(nm) ? "an" : "a";
     return { ...a, text: `${why}Build ${art} <b>${nm}</b> to work toward “${esc(o.label)}”.`, label: `Show ${nm}` };
@@ -1924,10 +1984,8 @@ function renderAll() {
   }).join(""));
 
   renderLesson();
-  const lessonEl = $("#lesson"), buildEl = document.querySelector(".build");
-  if (innerWidth > 900 && buildEl) { const bt = buildEl.offsetHeight + 28; lessonEl.style.bottom = bt + "px"; lessonEl.style.maxHeight = Math.max(160, document.querySelector(".stage").clientHeight - bt - 104) + "px"; }
-  else { lessonEl.style.bottom = ""; lessonEl.style.maxHeight = ""; }
   renderSide(c, L, hint, open);
+  const rb = $("#resetBtn"); if (rb) rb.textContent = S.confirmReset ? "Click again to erase" : "Start over";
   document.querySelectorAll("[data-prog]").forEach(el => { const t = S.tasks[el.dataset.prog]; el.style.width = t ? Math.min(100, t.t / t.dur * 100) + "%" : "0"; });
 }
 function renderLesson() {
@@ -1939,10 +1997,10 @@ function renderLesson() {
       <div class="specs">${procCost(k) ? chip("idle", money(procCost(k))) : ""}${procDur(k) ? chip("idle", `takes ${procDur(k)} s`) : ""}</div>
       ${lessonBody(p)}
       ${t && !t.done ? `<div class="bar"><i data-prog="${k}"></i></div>` : ""}
-      <div class="lesson-foot"><span class="why ${b && !b.lock ? "" : "ok"}" id="lessonWhy"></span>
+      <div class="lesson-foot"><span class="why ${b && !b.lock ? "" : "ok"}" id="lessonWhy" aria-live="off"></span>
       ${b?.needProc ? `<button class="btn ghost" data-act="proc" data-k="${b.needProc}">${PROCS[b.needProc].name}</button>` : ""}
       ${procDone(k) ? chip("good", "Done") : `<button class="btn primary" data-act="startProc" data-k="${k}" ${b ? "disabled" : ""}>${p.modal ? "Open" : t ? "In progress" : "Start" + (procCost(k) ? " · " + money(procCost(k)) : "")}</button>`}</div>`);
-    $("#lessonWhy").textContent = procDone(k) ? "Completed." : b ? b.why + "." : "Ready to start.";
+    const w = $("#lessonWhy"), wt = procDone(k) ? "Completed." : b ? b.why + "." : "Ready to start."; if (w && w.textContent !== wt) w.textContent = wt;
   } else if (sel && ITEMS[sel]) {
     lesson.hidden = false;
     const k = sel, it = ITEMS[k], b = blocker(k), ci = S.choice[k] ?? 0;
@@ -1953,9 +2011,9 @@ function renderLesson() {
     setHTML(lesson, `<div class="lesson-top"><span class="part-ico">${ICON[it.icon]}</span><div><div class="eyebrow">${it.cat} · Level ${it.level} · ${brandTag(k)}</div><h3>${it.name}</h3></div><button class="x" data-act="closeLesson" aria-label="Close lesson">${ICON.x}</button></div>
       <div class="specs">${chip("info", it.spec)}${it.max > 1 ? chip("idle", `${n(k)} of ${it.max} built`) : ""}</div>
       ${lessonBody(it)}${opts}
-      <div class="lesson-foot"><span class="why ${b ? "" : "ok"}" id="lessonWhy"></span>${needBtn}
+      <div class="lesson-foot"><span class="why ${b ? "" : "ok"}" id="lessonWhy" aria-live="off"></span>${needBtn}
       <button class="btn primary" data-act="build" data-k="${k}" ${b ? "disabled" : ""}>Build · ${money(costOf(k))}</button></div>`);
-    $("#lessonWhy").textContent = b ? b.why + "." : "Ready to build.";
+    const w = $("#lessonWhy"), wt = b ? b.why + "." : "Ready to build."; if (w && w.textContent !== wt) w.textContent = wt;
   } else { lesson.hidden = true; lesson._h = ""; }
 }
 function renderSide(c, L, hint, open) {
@@ -1968,6 +2026,7 @@ function renderSide(c, L, hint, open) {
       <div class="tierline">${chip("info", L.tier)}${chip(doneCount === objs.length ? "good" : "idle", `${doneCount}/${objs.length} goals`)}${S.site ? chip("idle", site().name) : ""}${S.building ? chip("idle", bld().name) : ""}${L.n >= 2 ? chip(S.uptime >= 99.9 ? "good" : "warn", `Uptime ${S.uptime.toFixed(2)}%`) : ""}</div></div>`;
     if (S.completed) side += `<div class="next done"><div class="eyebrow">Campus complete</div><p>You've finished every level. Keep the campus running: fix alerts, add capacity and rerun any drill.</p></div>`;
     else if (hint) side += `<div class="next"><div class="eyebrow">Next step</div><p>${hint.text}</p>${hint.label ? `<button class="btn" data-act="hintGo" ${hint.kind === "drill" && S.drill ? "disabled" : ""}>${hint.label}</button>` : ""}</div>`;
+    else if (objs.length && doneCount === objs.length && !$("#modalRoot").firstChild) side += `<div class="next"><div class="eyebrow">Level complete</div><p>Every goal is done.</p><button class="btn" data-act="levelDone">Continue</button></div>`;
     side += `<div><div class="sec-title">Goals <span>${L.tier}</span></div>${objs.map(o => {
       const d = objDone(o); let sub = "", extra = "";
       if (o.prog) { const [a, b] = o.prog(); sub = `${Math.min(a, b)} / ${b}${o.unit ? " " + o.unit : ""}`; }
@@ -1985,15 +2044,21 @@ function renderSide(c, L, hint, open) {
       return `<div class="drill"><span class="part-ico">${ICON[d.icon]}</span><span class="grow"><b>${d.name}</b><small>${gated ? `Needs ${lc(PROCS[d.needs].name)}` : d.desc}</small></span>${S.passed[k] ? chip("good", "Passed") : ""}<button class="btn ${S.passed[k] ? "ghost" : "primary"} sm" data-act="drill" data-k="${k}" ${S.drill || gated ? "disabled" : ""}>${ICON.play} ${S.passed[k] ? "Rerun" : "Run"}</button></div>`;
     }).join("")}</div>`;
   } else if (S.tab === "handbook") {
-    side += `<p class="note">Everything you've built, done or met so far, newest first.</p>`;
-    side += `<div>${S.learned.slice().reverse().map(k => {
-      const x = ITEMS[k] || CONCEPTS[k] || PROCS[k] || (k === "cx" ? CX : null); if (!x) return "";
-      const kind = ITEMS[k] ? `${ITEMS[k].cat}` : PROCS[k] ? "Process" : "Key idea";
-      const extra = ITEMS[k]?.options ? `<div class="lesson-body" style="padding-top:0"><h4>Products</h4><ul>${ITEMS[k].options.map(o => `<li><b>${o.name}</b> (${o.jci ? "JCI" : "non-JCI"}): ${esc(o.note)}</li>`).join("")}</ul></div>` : "";
-      return `<details class="hb"><summary><span class="part-ico">${ICON[x.icon]}</span><span>${x.name}</span>${ITEMS[k] ? brandTag(k) : ""}<small>${kind}</small></summary>${lessonBody(x)}${extra}</details>`;
-    }).join("")}</div>`;
-    side += `<p class="note">Figures are illustrative and simplified for play. Product names are used for education; this game is not affiliated with Johnson Controls or any other vendor.</p>`;
-    side += `<div class="drill"><span class="grow"><b>Progress</b><small>Saved automatically in this browser.${S.quiz ? " Checks: " + Object.entries(S.quiz).map(([l, r]) => `L${l} ${r}`).join(", ") : ""}</small></span><button class="btn ghost sm" data-act="reset">${S.confirmReset ? "Click again to erase" : "Start over"}</button></div>`;
+    // the handbook is a large string: rebuild it only when something it shows has changed
+    const hbKey = [S.learned.length, JSON.stringify(S.quiz || {}), JSON.stringify(S.picks), JSON.stringify(S.built), rackCount(), S.site, S.level, [...HB_OPEN].join()].join("|");
+    if (hbCache.key === hbKey) side = hbCache.html;
+    else {
+      side += `<p class="note">Everything you've built, done or met so far, newest first.</p>`;
+      side += `<div>${S.learned.slice().reverse().map(k => {
+        const x = ITEMS[k] || CONCEPTS[k] || PROCS[k] || (k === "cx" ? CX : null); if (!x) return "";
+        const kind = ITEMS[k] ? `${ITEMS[k].cat}` : PROCS[k] ? "Process" : "Key idea";
+        const extra = ITEMS[k]?.options ? `<div class="lesson-body" style="padding-top:0"><h4>Products</h4><ul>${ITEMS[k].options.map(o => `<li><b>${o.name}</b> (${o.jci ? "JCI" : "non-JCI"}): ${esc(o.note)}</li>`).join("")}</ul></div>` : "";
+        return `<details class="hb" data-k="${k}" ${HB_OPEN.has(k) ? "open" : ""}><summary><span class="part-ico">${ICON[x.icon]}</span><span>${x.name}</span>${ITEMS[k] ? brandTag(k) : ""}<small>${kind}</small></summary>${lessonBody(x)}${extra}</details>`;
+      }).join("")}</div>`;
+      side += `<p class="note">Figures are illustrative and simplified for play. Product names are used for education; this game is not affiliated with Johnson Controls or any other vendor.</p>`;
+      side += `<div class="drill"><span class="grow"><b>Progress</b><small>Saved automatically in this browser.${S.quiz ? " Checks: " + Object.entries(S.quiz).map(([l, r]) => `L${l} ${r}`).join(", ") : ""}</small></span><button class="btn ghost sm" id="resetBtn" data-act="reset">Start over</button></div>`;
+      hbCache = { key: hbKey, html: side };
+    }
   } else {
     if (S.level < 2) side += `<div class="empty">Alerts start at level 2, when technicians join your site.</div>`;
     else {
@@ -2016,36 +2081,44 @@ function kpi(icon, label, val, unit, sub, cls) {
    LOOP
    ===================================================================== */
 const clockT = new THREE.Clock();
-let uiClock = 0;
+let uiClock = 0, errAt = 0, errShown = false;
 function frame() {
-  const dt = Math.min(clockT.getDelta(), 0.1);
-  simulate(dt);
-  updateLeds(dt);
-  tickPops(dt);
-  const chillerDown = S.drill?.key === "chillerFail";
-  if (!REDUCED) fans.forEach((f, i) => { if (!(chillerDown && i < 2)) f.rotation.y += dt * (5 + (i % 3)); });
-  const now = performance.now() / 1000;
-  for (const inc of S.incidents) inc.pin.position.y = 2.4 + (REDUCED ? 0 : Math.sin(now * 2.4 + inc.rack.x) * 0.15);
-  if (camAnim) {
-    camAnim.t = Math.min(1, camAnim.t + dt / 0.9);
-    const k = ease(camAnim.t);
-    controls.target.lerpVectors(camAnim.from, camAnim.to, k);
-    camera.position.copy(controls.target).add(camAnim.offset);
-    camera.zoom = camAnim.z0 + (camAnim.z1 - camAnim.z0) * k; camera.updateProjectionMatrix();
-    if (camAnim.t >= 1) camAnim = null;
+  requestAnimationFrame(frame); // re-arm first so one bad frame never freezes the game
+  try {
+    const dt = Math.min(clockT.getDelta(), 0.1);
+    simulate(dt);
+    updateLeds(dt);
+    tickPops(dt);
+    const chillerDown = S.drill?.key === "chillerFail";
+    if (!REDUCED) fans.forEach((f, i) => { if (!(chillerDown && i < 2)) f.rotation.y += dt * (5 + (i % 3)); });
+    const now = performance.now() / 1000;
+    for (const inc of S.incidents) inc.pin.position.y = 2.4 + (REDUCED ? 0 : Math.sin(now * 2.4 + inc.rack.x) * 0.15);
+    if (camAnim) {
+      camAnim.t = Math.min(1, camAnim.t + dt / 0.9);
+      const k = ease(camAnim.t);
+      controls.target.lerpVectors(camAnim.from, camAnim.to, k);
+      camera.position.copy(controls.target).add(camAnim.offset);
+      camera.zoom = camAnim.z0 + (camAnim.z1 - camAnim.z0) * k; camera.updateProjectionMatrix();
+      if (camAnim.t >= 1) camAnim = null;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    uiClock += dt;
+    if (uiClock > 0.3) { uiClock = 0; renderAll(); }
+  } catch (e) {
+    const now = performance.now();
+    if (now - errAt > 1000) { errAt = now; console.error(e); }
+    if (!errShown) { errShown = true; toast("Something went wrong. Reload the page if the map stays frozen.", "bad"); }
   }
-  controls.update();
-  renderer.render(scene, camera);
-  uiClock += dt;
-  if (uiClock > 0.3) { uiClock = 0; renderAll(); }
-  requestAnimationFrame(frame);
 }
 /* ---------- save and resume (this browser only) ---------- */
 const SAVE_KEY = "dcb-save-v1";
+let resetting = false; // set by "Start over": stops the 5 s autosave from re-saving before the reload lands
 const SAVE_FIELDS = ["level", "budget", "clock", "built", "picks", "choice", "passed", "failed", "learned", "tasks", "site", "building", "uptime", "completed", "quiz"];
 function save() {
+  if (resetting) return;
   try {
-    const d = { racks: racks.filter(r => r.built).map(r => r.id) };
+    const d = { v: 1, racks: racks.filter(r => r.built).map(r => r.id) };
     SAVE_FIELDS.forEach(k => d[k] = S[k]);
     localStorage.setItem(SAVE_KEY, JSON.stringify(d));
   } catch (e) { /* storage unavailable: play continues unsaved */ }
@@ -2053,6 +2126,18 @@ function save() {
 function loadSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) { return null; } }
 function restore(d) {
   SAVE_FIELDS.forEach(k => { if (d[k] !== undefined) S[k] = d[k]; });
+  // a save from an older build may hold keys or indexes this version no longer has: drop them rather than crash every load
+  S.level = clamp(Math.floor(+S.level) || 0, 0, LEVELS.length - 1);
+  for (const k in S.built) if (!ITEMS[k]) delete S.built[k];
+  for (const k in S.tasks) if (!PROCS[k]) delete S.tasks[k];
+  for (const k in S.picks) { const o = ITEMS[k]?.options; S.picks[k] = o ? (S.picks[k] || []).filter(i => o[i]) : []; }
+  for (const k in S.choice) if (!ITEMS[k]?.options?.[S.choice[k]]) delete S.choice[k];
+  if (!Number.isFinite(S.budget)) S.budget = LEVELS[S.level].grant;
+  if (!SITES[S.site]) S.site = null;
+  if (S.building && !BUILDINGS[S.building]) S.building = null;
+  S.spent ??= 0; S.credits ??= 0; S.eventLoss ??= 0;
+  S.stats ??= { fixed: 0, breached: 0 };
+  S.eventsSeen ??= { survived: 0, lost: 0 };
   for (const k in S.built) if (SLOTS[k]) for (let i = 0; i < S.built[k] && i < SLOTS[k].length; i++) SLOTS[k][i].visible = true;
   (d.racks || []).forEach(id => { const r = rackById(id); if (r) { r.built = true; r.mesh.visible = true; showRackLeds(r); } });
   if (n("gen")) { genPad.visible = true; fuelTank.visible = true; }
@@ -2066,8 +2151,12 @@ function restore(d) {
 }
 const rackById = id => racks.find(r => r.id === id);
 const saved = loadSave();
+let resumed = false;
 if (saved && saved.site) {
-  restore(saved);
+  try { restore(saved); resumed = true; }
+  catch (e) { console.error(e); try { localStorage.removeItem(SAVE_KEY); } catch (_) {} location.reload(); return; }
+}
+if (resumed) {
   renderAll();
   showModal(`
     <div class="eyebrow">Welcome back</div>
@@ -2075,6 +2164,7 @@ if (saved && saved.site) {
     <p class="lead">Your game was saved in this browser: ${esc(site().name)}${S.building ? ", " + esc(bld().name.toLowerCase()) : ""}, ${money(S.budget)} in the bank.</p>
     <div class="foot"><button class="btn ghost lg" data-act="reset">Start over</button><button class="btn primary lg" data-act="resume">Continue</button></div>`);
 } else startLevel(0);
+layoutLesson();
 setInterval(save, 5000);
 requestAnimationFrame(frame);
 })();
