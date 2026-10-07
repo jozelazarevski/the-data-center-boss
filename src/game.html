@@ -66,6 +66,7 @@ svg { display: block; flex: none; }
 .live.outage i { background: var(--bad); box-shadow: 0 0 0 3px rgba(210,63,69,.18); }
 .ff { border: 0; border-radius: 999px; padding: 5px 10px; font-weight: 800; font-size: 12px; background: var(--wash); color: var(--muted); }
 .ff.on { background: var(--accent); color: #fff; }
+.ff:disabled { opacity: .5; cursor: default; }
 .bell { position: relative; border: 0; background: transparent; padding: 6px; border-radius: 8px; }
 .bell:hover { background: var(--wash); }
 .badge { position: absolute; top: 1px; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--bad); color: #fff; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center; }
@@ -297,6 +298,11 @@ svg { display: block; flex: none; }
   .toasts { top: calc(var(--topbar-h, 60px) + 212px); left: 460px; transform: none; align-items: flex-start; max-width: calc(100% - 812px); }
   .toast { border-radius: 16px; }
 }
+@media (min-width: 901px) and (max-width: 1060px) {
+  /* too narrow beside the lesson card: show only the newest toast, over the KPI strip */
+  .toasts { top: calc(var(--topbar-h, 60px) + 14px); left: 16px; max-width: calc(100% - 420px); }
+  .toast:nth-child(n+2) { display: none; }
+}
 @media (max-width: 900px) {
   body { overflow: auto; }
   .app { height: auto; min-height: 100%; }
@@ -439,7 +445,7 @@ if (typeof THREE === "undefined" || !THREE.OrbitControls) { bootFail("Couldn't l
    ===================================================================== */
 const SITES = {
   ashburn: { name: "Ashburn, Virginia", tag: "Data Center Alley", price: 0.09, cool: 1.0, rev: 1.15, land: 1.3, equip: 0.95, waterStress: false, freeHours: 4500, wue: 1.8,
-    facts: [["Power price", "$0.09/kWh"], ["Grid", "Constrained: multi-year waits for big loads"], ["Fiber", "Densest in the world, next to every cloud"], ["Climate", "Humid, four seasons"], ["Water", "Available"], ["Land", "Expensive"], ["Latency", "~2 ms to Washington and NYC"], ["Incentive", "Sales-tax exemption on DC equipment"]],
+    facts: [["Power price", "$0.09/kWh"], ["Grid", "Constrained: multi-year waits for big loads"], ["Fiber", "Densest in the world, next to every cloud"], ["Climate", "Humid, four seasons"], ["Water", "Available"], ["Land", "Expensive"], ["Latency", "~1 ms to Washington, ~6 ms round trip to New York"], ["Incentive", "Sales-tax exemption on DC equipment"]],
     plus: "Customers pay a premium to be here (+15% revenue).", minus: "Land costs 30% more, and big grid upgrades are slow and pricey." },
   phoenix: { name: "Phoenix, Arizona", tag: "Desert growth market", price: 0.08, cool: 1.25, rev: 1.05, land: 0.75, equip: 0.95, waterStress: true, freeHours: 3000, wue: 2.5,
     facts: [["Power price", "$0.08/kWh"], ["Grid", "Good, but stressed at summer peaks"], ["Fiber", "Good west-coast routes"], ["Climate", "Very hot, dry summers"], ["Water", "Scarce"], ["Land", "Cheap"], ["Latency", "~12 ms to Los Angeles"], ["Incentive", "Sales-tax exemption on DC equipment"]],
@@ -552,7 +558,7 @@ const ITEMS = {
       { name: "Tyco SAPPHIRE clean agent + Simplex alarm", jci: true, cost: 45000, note: "JCI brands. SAPPHIRE discharges FK-5-1-12 (formerly sold as 3M Novec 1230), a clean agent that puts out fires without wetting servers; Simplex runs detection and alarms.", smoke: "clean",
         stats: ["Clean agent: rack back online as soon as the fault is fixed", "No water near servers"] },
       { name: "Pre-action sprinkler + VESDA", jci: false, cost: 32000, note: "Dry pipes plus aspirating smoke detection (VESDA by Xtralis, a Honeywell brand). Sprinkler valves from Viking and others. JCI's Tyco also makes pre-action sprinklers.", smoke: "wet",
-        stats: ["Cheaper up front", "If it discharges, the rack dries out for 30 s before it earns again"] },
+        stats: ["Cheaper up front", "If a fire opens a sprinkler head, the rack dries out for 30 s before it earns again"] },
     ],
     what: "Very early smoke detection that samples air through small pipes, plus a clean-agent gas or pre-action sprinkler system.",
     why: "A normal sprinkler would destroy the servers. Clean agents put out a fire without harming electronics; pre-action pipes stay dry until two separate triggers fire.",
@@ -1803,7 +1809,7 @@ function startLevel(lv) {
   const c = CONCEPTS[L.concept];
   const note = lv === 0 ? "Each step teaches one part of the process. Tap or hover anything on the map to see what it is. Figures are illustrative and simplified. Timings are compressed for play: a permit that takes a few seconds here takes months in reality."
     : lv === 1 ? "Build cards show who makes each part: <b>JCI</b>, <b>JCI option</b> (pick JCI or another vendor) or <b>Non-JCI</b>. Use the JCI filter to see Johnson Controls parts."
-    : "From now on, racks occasionally fail. Click an alert pin to send a technician before the alert goes overdue and costs SLA credits. Weather and grid events are forecast in the Mission panel: check your spare capacity when one is coming.";
+    : "From now on, racks occasionally fail. Click an alert pin to send a technician before the alert goes overdue and costs SLA credits. Weather, grid, water, fiber and maintenance events are forecast in the Mission panel: check your spare capacity when one is coming.";
   showModal(`
     <div class="eyebrow">${lv ? `Level ${L.n} of ${LEVELS.length - 1} · ${L.tier}` : "Getting started"}</div>
     <h2>${L.name}</h2>
@@ -1849,7 +1855,7 @@ const INC = {
   hot: { label: "Hot spot", sev: "warn", detail: () => `Inlet ${Math.round(rand(29, 33))}°C, above the 27 °C guideline` },
   psu: { label: "PSU failure", sev: "bad", detail: () => "Server running on its B feed only" },
   link: { label: "Link flapping", sev: "warn", detail: () => "Top-of-rack switch uplink" },
-  smoke: { label: "Smoke detected", sev: "bad", detail: () => "Aspirating detector alarm at this rack" },
+  smoke: { label: "Fire in a server", sev: "bad", detail: () => "Smoke and heat detection confirmed; suppression released in this zone" },
 };
 /* the BMS pick sets how long technicians have before an alert is overdue, and how early weather events are forecast */
 const bmsOpt = () => n("bms") ? ITEMS.bms.options[S.picks.bms?.[0] ?? 0] : null;
@@ -1891,8 +1897,8 @@ function resolve(inc) {
   if (inc.key === "smoke") {
     // what the suppression system did decides when the rack earns again
     const wet = ITEMS.fire.options[S.picks.fire?.[0] ?? 0].smoke === "wet";
-    if (wet) { inc.rack.dryUntil = S.t + 30; toast(`${inc.rack.id}: pre-action sprinklers discharged. 30 s dry-out before it earns again.`, "warn"); }
-    else toast(`${inc.rack.id}: clean agent discharged, servers dry and back online.`, "good");
+    if (wet) { inc.rack.dryUntil = S.t + 30; toast(`${inc.rack.id}: the pre-action sprinkler over the rack opened and put the fire out. 30 s dry-out before it earns again.`, "warn"); }
+    else toast(`${inc.rack.id}: the clean agent put the fire out. Servers are dry and back online.`, "good");
   } else toast(`${inc.rack.id} fixed.`, "good");
 }
 
@@ -1950,7 +1956,7 @@ function simulate(dt) {
   const e = econ(c);
   // operating events: overheated rooms throttle, a curtailed grid sheds load, a grid outage without full backup or a cut to the last carrier stops all revenue
   let mult = 1;
-  if (c.air && c.airHeat > c.air) mult *= 0.5;
+  if (c.airHeat > c.air) mult *= 0.5;
   if (c.utilityCap && c.facility > c.utilityCap && !c.gridDown) mult *= c.utilityCap / c.facility;
   if (c.gridDown) mult = ridesOut(c) ? mult : 0;
   if (c.it && c.carriers <= 0) mult = 0;
@@ -1969,7 +1975,10 @@ function simulate(dt) {
   }
   if (S.forecast && S.t >= S.forecast.at) startEvent(S.forecast.key);
   if (S.event) { S.event.t += dt; eventVisuals(); if (S.event.t >= S.event.dur) endEvent(); }
-  if (S.level >= 2 && S.t > S.nextIncident && !S.drill) { spawnIncident(); S.nextIncident = S.t + rand(22, 34); }
+  // a dialog (level complete, quiz, report card) pauses alerts and their SLA clocks, so reading never costs money
+  const paused = !!$("#modalRoot").firstChild;
+  if (paused) { S.nextIncident += dt; for (const inc of S.incidents) { inc.t0 += dt; if (inc.nextCredit) inc.nextCredit += dt; } }
+  else if (S.level >= 2 && S.t > S.nextIncident && !S.drill) { spawnIncident(); S.nextIncident = S.t + rand(22, 34); }
   for (const inc of S.incidents) {
     // SLA credit: about 20 s of that rack's revenue when it goes overdue, and again every 30 s until a technician is working on it
     const credit = Math.round(inc.rack.kw * 16 * site().rev * 20);
@@ -2163,8 +2172,8 @@ document.addEventListener("click", e => {
       S.confirmReset = true; el.textContent = "Click again to erase";
       setTimeout(() => { S.confirmReset = false; if (el.isConnected) el.textContent = "Start over"; renderAll(); }, 4000);
     }
-    else if (a === "speed") S.speed = S.speed > 1 ? 1 : 3;
-    else if (a === "hintGo") { const h = nextHint(); if (h?.kind === "item") selectItem(h.key); else if (h?.kind === "proc") selectProc(h.key); else if (h?.kind === "drill") runDrill(h.key); else if (h?.kind === "speed") S.speed = S.speed > 1 ? 1 : 3; }
+    else if (a === "speed") { if (!S.event) S.speed = S.speed > 1 ? 1 : 3; }
+    else if (a === "hintGo") { const h = nextHint(); if (h?.kind === "item") selectItem(h.key); else if (h?.kind === "proc") selectProc(h.key); else if (h?.kind === "drill") runDrill(h.key); else if (h?.kind === "speed" && !S.event) S.speed = S.speed > 1 ? 1 : 3; }
     renderAll();
     if (a === "cat") layoutLesson();
   } catch (err) {
@@ -2314,14 +2323,15 @@ function renderAll() {
   setHTML($("#buildHead"), `<b>Build</b>` + CATS.map(k => `<button class="cat ${k === "JCI" ? "jcicat" : ""}" data-act="cat" data-cat="${k}" aria-pressed="${S.cat === k}">${k}</button>`).join(""));
   const hint = S.completed ? null : nextHint();
   // fast-forward switches itself off as soon as nothing is left to wait for
-  if (S.speed > 1) {
-    const running = Object.values(S.tasks).some(t => !t.done);
-    const saving = hint?.kind === "speed" || (hint?.kind === "item" && blocker(hint.key)?.money) || (hint?.kind === "proc" && procBlocker(hint.key)?.money);
-    if (!running && !saving) S.speed = 1;
-  }
+  const running = Object.values(S.tasks).some(t => !t.done);
+  const saving = hint?.kind === "speed" || (hint?.kind === "item" && blocker(hint.key)?.money) || (hint?.kind === "proc" && procBlocker(hint.key)?.money);
+  const canFF = !S.event && !S.drill && (running || saving);
+  if (S.speed > 1 && !canFF) S.speed = 1;
   const fb = $("#ffBtn"), fl = S.speed + "×";
   if (fb.textContent !== fl) fb.textContent = fl;
   fb.classList.toggle("on", S.speed > 1); fb.setAttribute("aria-pressed", String(S.speed > 1));
+  fb.disabled = !canFF;
+  fb.title = canFF ? "Fast-forward the clock" : S.event ? "Paused while an event is running" : "Nothing to wait for right now";
   setHTML($("#cards"), ORDER.filter(k => catMatch(k, S.cat)).map(k => {
     const it = ITEMS[k], b = blocker(k), lockLvl = it.level > S.level;
     const count = k === "rack" ? `${rackCount()}/${LEVELS[S.level].rackCap}` : it.max > 1 ? `${n(k)}/${it.max}` : "";
@@ -2347,9 +2357,10 @@ function previewRow({ before, after }, cost, k) {
   if (Math.abs(dRate) > 0.5) chips.push(chip(dRate > 0 ? "good" : "warn", `Profit ${dRate > 0 ? "+" : "−"}${money(Math.abs(dRate * 60))}/h`));
   const mins = Math.max(1, Math.ceil(cost / dRate / 60)); // dRate is $ per real second at 1×
   if (dRate > 0.5 && cost) chips.push(chip("idle", `Pays back in ~${mins >= 120 ? Math.round(mins / 60) + " h" : mins + " min"} of play`));
+  if (after.utilityCap !== before.utilityCap) chips.push(chip("good", `Grid ${kw(before.utilityCap)} → ${kw(after.utilityCap)}`));
   if (!chips.length) chips.push(chip("idle", ["ups", "upsSmall", "gen"].includes(k) ? "No PUE change · protects uptime" : k === "bms" ? "No PUE change · buys response time" : "No change to PUE or profit"));
   if (k === "chiller" && ITEMS.chiller.options[S.choice.chiller ?? 0].water) chips.push(chip("warn", `Water ~${Math.round(300 * 1.8 * 24 / 1000 * (site().waterStress ? 1.4 : 1))} m³/day (in this game)`));
-  return `<div class="specs preview"><span class="eyebrow" style="align-self:center">After you build</span>${chips.join("")}</div>`;
+  return `<div class="specs preview"><span class="eyebrow" style="align-self:center">${PROCS[k] ? "After you sign" : "After you build"}</span>${chips.join("")}</div>`;
 }
 function renderLesson() {
   const lesson = $("#lesson"), sel = S.selected;
