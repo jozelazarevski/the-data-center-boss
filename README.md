@@ -2,7 +2,7 @@
 
 A data center tycoon that teaches you how one is built. Pick a site, buy a hangar, then grow a server closet into a megawatt AI campus, one real constraint at a time.
 
-**Play:** https://jozelazarevski.github.io/the-data-center-boss/ (once GitHub Pages is on, see below)
+**Play:** https://jozelazarevski.github.io/the-data-center-boss/
 
 ## What you learn
 
@@ -32,13 +32,11 @@ Figures are illustrative and simplified for play. Product names are used for edu
 - `index.html`: the standalone page GitHub Pages serves. Generated; don't edit by hand.
 - `build.sh`: rebuilds `index.html` from `src/game.html`. Run `./build.sh` after every change to the source.
 
-## Turn on GitHub Pages
+## Deploy
 
-1. Repo **Settings → Pages**.
-2. **Source:** Deploy from a branch. **Branch:** `main`, folder `/ (root)`. Save.
-3. After a minute or two the game is live at the link above.
+GitHub Pages is on, with **Settings → Pages → Source** set to **GitHub Actions**. Every push to `main` runs `.github/workflows/static.yml`, which publishes the repository root, so `index.html` must be rebuilt with `./build.sh` before you commit. The site updates a minute or two after the run finishes. You can also start the workflow by hand from the Actions tab.
 
-Pages on a private repository needs a paid GitHub plan; on a free account, make the repository public first.
+Pages on a private repository needs a paid GitHub plan, so keep the repository public on a free account.
 
 ## Run locally
 
